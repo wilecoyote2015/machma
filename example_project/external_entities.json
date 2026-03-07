@@ -1,0 +1,10 @@
+{
+    "horse_manager": {
+        "name": "Horse Manager",
+        "description": "The horse manager is responsible for the horses.",
+        "type": "person",
+        "email": "horse@manager.com",
+        "phone": "1234567890",
+        "address": "123 Main St, Anytown, USA"
+    }
+}

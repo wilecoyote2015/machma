@@ -1,93 +1,258 @@
-# machma
+# Machma
 
+Machma is a tool for managing tasks for events.
+It aims to be lean and simple.
 
+Important feature: machma is entirely text based. 
+So, whereas the UI may be used, the text files can be edited independently with any text editor and version control can be used directly for the projects.
 
-## Getting started
+Core interaction is through a graph-like timeline of all tasks that can be filtered, scrolled / zoomed / panned.
+CLicking on a task opens a detail view of the task that is editable and reflects the md files content.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+There are other views like a tabular overview of all tasks as well as helper management and external entity management.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+External entities are persons or other organizations etc. that we need to contact or that we are somehow working with in the project.
 
-## Add your files
+# UI 
+The UI provides an overview of the tasks and their dependencies in a node-like graph with a timeline view.
+Left and right are collapsible panels. 
+Left shows filtering options. Right shows currently selected task.
+Tasks shall be somehow clustered / grouped by groups while still reflecting the correct position in the timeline.
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+![UI](docs/main.png)
+
+# Data Structure
+The data structure is as follows:
+
+## Directory Layout
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/wilecoyote2015/machma.git
-git branch -M main
-git push -uf origin main
+<project>/
+├── project.json           # Project-level metadata
+├── helpers.json           # People who help execute tasks (internal)
+├── external_entities.json # External contacts referenced in tasks
+├── documents/             # Attachments and images (arbitrary subdirectories)
+│   ├── <file>
+│   └── <subdir>/
+│       └── <file>
+└── tasks/
+    └── <group>/
+        ├── group.json     # Group metadata (optional; defaults to grey)
+        ├── <task>.md      # One file per task
+        └── <subgroup>/    # Groups can be arbitrarily nested
+            ├── group.json
+            └── <task>.md
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/wilecoyote2015/machma/-/settings/integrations)
+## `project.json`
 
-## Collaborate with your team
+Project-level metadata.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+| Field         | Type   | Description                                                  |
+|---------------|--------|--------------------------------------------------------------|
+| `name`        | string | Display name of the project                                  |
+| `anchor_date` | string | Reference date (`YYYY-MM-DD`); task deadlines are relative to this |
 
-## Test and Deploy
+```json
+{
+    "name": "Example Project",
+    "anchor_date": "2026-05-01"
+}
+```
 
-Use the built-in continuous integration in GitLab.
+---
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## `helpers.json`
 
-***
+A map of internal helpers (people involved in running the event/project), keyed by a short identifier.
 
-# Editing this README
+| Field     | Type   | Description          |
+|-----------|--------|----------------------|
+| `name`    | string | Full name            |
+| `email`   | string | Email address        |
+| `phone`   | string | Phone number         |
+| `address` | string | Postal address       |
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```json
+{
+    "bs": {
+        "name": "Ben Schmid",
+        "email": "ben@schmid.com",
+        "phone": "1234567890",
+        "address": "123 Main St, Anytown, USA"
+    }
+}
+```
 
-## Suggestions for a good README
+---
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## `external_entities.json`
 
-## Name
-Choose a self-explaining name for your project.
+A map of external contacts or organisations that are referenced in tasks but are not internal helpers, keyed by a short identifier.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+| Field         | Type   | Description                        |
+|---------------|--------|------------------------------------|
+| `name`        | string | Display name                       |
+| `description` | string | What this entity is/does           |
+| `type`        | string | Entity type (e.g. `"person"`)      |
+| `email`       | string | Email address                      |
+| `phone`       | string | Phone number                       |
+| `address`     | string | Postal address                     |
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```json
+{
+    "horse_manager": {
+        "name": "Horse Manager",
+        "description": "The horse manager is responsible for the horses.",
+        "type": "person",
+        "email": "horse@manager.com",
+        "phone": "1234567890",
+        "address": "123 Main St, Anytown, USA"
+    }
+}
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## `documents/`
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+An optional directory for any files (PDFs, images, spreadsheets, etc.) associated with the project. The directory may contain arbitrary subdirectories.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Files are referenced from within task Markdown files using paths **relative to `documents/`**:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```markdown
+[Floor plan](floor_plan.pdf)
+![Setup photo](photos/setup_01.jpg)
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+---
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## `tasks/<group>/group.json`
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Optional metadata for a task group (subdirectory under `tasks/`). If `group.json` is absent, the group is rendered in grey with no description.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+| Field         | Type   | Required | Description                        |
+|---------------|--------|----------|------------------------------------|
+| `color`       | string | no       | Hex color code for UI display; defaults to grey if omitted |
+| `description` | string | no       | Short description of the group     |
 
-## License
-For open source projects, say how it is licensed.
+```json
+{
+    "color": "#0000FF",
+    "description": "This is a group for miscellaneous tasks."
+}
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+---
+
+## `tasks/<group>/<task>.md`
+
+Each task is a Markdown file. The filename (without `.md`) serves as the task's unique identifier within the project.
+
+### Header & Inline Fields
+
+The first line is the task title as a level-1 heading. Immediately below, key-value fields are written as inline Markdown (one per line, terminated with two trailing spaces):
+
+| Field             | Type   | Description                                                                 |
+|-------------------|--------|-----------------------------------------------------------------------------|
+| `deadline`        | string | Relative offset from `anchor_date` (e.g. `-10d`, `+2d`), an absolute date (`YYYY-MM-DD`), or an absolute date and time (`YYYY-MM-DD HH:MM`) |
+| `assignee`        | string | Helper ID (key from `helpers.json`) responsible for the task               |
+| `n_helpers_needed`| int    | Number of helpers required to carry out the task                            |
+| `status`          | string | Status of the task (`in_progress`, `finished`, `todo`, `cancelled`)                 |
+
+### Sections
+
+| Section              | Syntax                          | Description                                                                 |
+|----------------------|---------------------------------|-----------------------------------------------------------------------------|
+| `## Depends On`      | list of task IDs                | Tasks that must be completed before this one                                |
+| `## Tags`            | list of strings                 | Free-form labels for filtering/grouping                                     |
+| `## External Entities` | list of external entity IDs   | External contacts referenced by this task                                   |
+| `## Helpers`         | list of helper IDs              | Helpers assigned to support this task                                       |
+| `# Description`      | free text                       | Detailed description of the task                                            |
+| `# Questions`        | see below                       | Open or answered questions related to the task                              |
+| `# Issues`           | see below                       | Problems or blockers associated with the task                               |
+| `# Log`              | see below                       | Chronological progress entries                                              |
+
+### Questions
+
+Each question is a level-2 heading. Append `[r]` to mark it as **recurring** (relevant in every iteration of the task). Answers are written in a `### Answer` subsection.
+
+```markdown
+## How many horses need to be fed? [r]
+### Answer
+10 Horses
+```
+
+### Issues
+
+Each issue is a level-2 heading. An issue without `### Assignee` or `### Solution` is considered **unresolved and not in progress**.
+
+```markdown
+## One horse is not hungry
+This is a problem.
+
+### Assignee
+bs
+
+### Solution
+We wait until it is hungry again.
+```
+
+### Log
+
+Each log entry is a level-2 heading with the date in `YYYY_MM_DD` format followed by a short title. The body is free text. Multiple entries are allowed.
+
+```markdown
+## 2026_01_10 We made progress
+We have gathered information!
+```
+
+### Full Example
+
+```markdown
+# Feed the Horses
+deadline: -5d  
+assignee: bs  
+n_helpers_needed: 10  
+status: in_progress
+
+## Depends On
+- put_things
+
+## Tags
+- feeding
+- garden
+
+## External Entities
+- horse_manager
+
+## Helpers
+- bs
+- vs
+
+# Description
+The horses need to be fed.
+
+# Questions
+## How many horses need to be fed? [r]
+### Answer
+10 Horses
+
+## How much feed is needed?
+
+# Issues
+## One horse is not hungry
+This is a problem.
+
+### Assignee
+bs
+
+### Solution
+We wait until it is hungry again.
+
+# Log
+## 2026_01_10 We made progress
+We have gathered information!
+```
