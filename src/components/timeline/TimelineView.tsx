@@ -15,9 +15,11 @@ import {
 import { useProjectStore } from "@/stores/project-store";
 import { computeLayout } from "./layout";
 import { TaskNode } from "./TaskNode";
+import { TimelineTickNode } from "./TimelineTickNode";
 
 const nodeTypes: NodeTypes = {
   taskNode: TaskNode,
+  timelineTick: TimelineTickNode,
 };
 
 export function TimelineView() {
@@ -57,18 +59,20 @@ export function TimelineView() {
     [filteredTasks, project.groups, project.meta.anchor_date, project.helpers],
   );
 
-  // Highlight selected node
+  // Highlight selected task node (tick nodes stay unselected)
   const nodesWithSelection = useMemo(
     () =>
       nodes.map((n) => ({
         ...n,
-        selected: n.id === selectedTaskId,
+        selected: !n.id.startsWith("__tick_") && n.id === selectedTaskId,
       })),
     [nodes, selectedTaskId],
   );
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
+      // Ignore clicks on timeline tick nodes
+      if (node.id.startsWith("__tick_")) return;
       selectTask(node.id === selectedTaskId ? null : node.id);
     },
     [selectTask, selectedTaskId],
@@ -91,6 +95,7 @@ export function TimelineView() {
         <Controls />
         <MiniMap
           nodeColor={(node) => {
+            if (node.id.startsWith("__tick_")) return "transparent";
             const data = node.data as { groupColor?: string } | undefined;
             return data?.groupColor ?? "#9CA3AF";
           }}
