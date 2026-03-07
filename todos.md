@@ -1,0 +1,15 @@
+- Filtering by whether there are unresolved issues or questions
+- Filtering by tasks that have deadline in next N days (or weeks, or months)
+- Tidy up task edit UI -> e.g. group things into collapsible sections (metadata, description, questions, issues, log), merge helper number and helpers assignment sections (displaying Helpers: 8/20 as section title, with required helpers editable)
+- Smarter rendering of timeline and scaling: scale should not be fixed step (1d = x pixels), but dynamically based on number of tasks that are close etc. to prevent overlap and clutter
+- button to add new task and delete task
+- task table view: sortable table (sorted by deadline by default) that can be filtered like the timeline view (reuse panel or at least elements. due to table nature, vertiacal sidebars are maybe not the best option?). Table has:
+   - title
+   - deadline
+   - assignee
+   - n helpers / n helpers needed needed 
+   - status
+   - group (also with color indicator at start of each row)
+   - has unresolved issues? -> only indicator icon, no text
+   - has unanswered questions? -> only indicator icon, no text
+and click on a row opens the task detail view (like in timeline view)
