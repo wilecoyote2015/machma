@@ -10,4 +10,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  server: {
+    watch: {
+      // Ignore everything outside src/ to prevent full-page reloads
+      // when the app writes to project data files (e.g. .md, .json)
+      // that happen to live inside the Vite workspace root.
+      ignored: ["**/example_project/**", "**/dist/**", "**/docs/**"],
+    },
+  },
 });
