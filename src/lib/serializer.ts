@@ -4,9 +4,18 @@
  * Round-trip fidelity is critical: parsing then serializing a file
  * should produce output identical to what a human would write,
  * keeping git diffs clean.
+ *
+ * User headings within content sections are elevated to avoid
+ * collision with structural markdown headings:
+ *   Description:        +1  (user # → file ##)
+ *   Issue description:  +2  (user # → file ###)
+ *   Issue solution:     +3  (user # → file ####)
+ *   Question answer:    +3  (user # → file ####)
+ *   Log body:           +2  (user # → file ###)
  */
 
 import type { Task } from "@/types";
+import { elevateHeadings } from "@/lib/headings";
 
 /** Format a list section: items as `- value` lines, or empty. */
 function formatList(items: string[]): string {
@@ -39,9 +48,9 @@ export function serializeTask(task: Task): string {
   parts.push("## Helpers");
   parts.push(formatList(task.helpers));
 
-  // Description
+  // Description — elevate user headings by +1
   parts.push("# Description");
-  parts.push(task.description);
+  parts.push(elevateHeadings(task.description, 1));
   parts.push("");
 
   // Questions
@@ -52,7 +61,8 @@ export function serializeTask(task: Task): string {
     if (q.answer) {
       parts.push("");
       parts.push("### Answer");
-      parts.push(q.answer);
+      // Elevate user headings in answer by +3
+      parts.push(elevateHeadings(q.answer, 3));
     }
     parts.push("");
   }
@@ -62,7 +72,8 @@ export function serializeTask(task: Task): string {
   for (const issue of task.issues) {
     parts.push(`## ${issue.title}`);
     if (issue.description) {
-      parts.push(issue.description);
+      // Elevate user headings in issue description by +2
+      parts.push(elevateHeadings(issue.description, 2));
       parts.push("");
     }
     if (issue.assignee) {
@@ -72,7 +83,8 @@ export function serializeTask(task: Task): string {
     }
     if (issue.solution) {
       parts.push("### Solution");
-      parts.push(issue.solution);
+      // Elevate user headings in solution by +3
+      parts.push(elevateHeadings(issue.solution, 3));
       parts.push("");
     }
   }
@@ -82,7 +94,8 @@ export function serializeTask(task: Task): string {
   for (const entry of task.log) {
     parts.push(`## ${entry.date} ${entry.title}`);
     if (entry.body) {
-      parts.push(entry.body);
+      // Elevate user headings in log body by +2
+      parts.push(elevateHeadings(entry.body, 2));
     }
   }
 

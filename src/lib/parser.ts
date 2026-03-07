@@ -1,17 +1,20 @@
 /**
  * Parse a task .md file into a structured Task object.
  *
- * The format is NOT standard markdown frontmatter. It uses:
+ * The format uses:
  * - `# Title` as the first line
  * - `key: value` inline metadata lines (with trailing double-space)
  * - `## Section` headings for list data (Depends On, Tags, etc.)
  * - `# Section` headings for rich content (Description, Questions, Issues, Log)
  * - `### Subsection` for nested data within Questions/Issues
  *
- * The parser is a simple state machine that walks lines top-to-bottom.
+ * User-written headings inside content sections (Description, Issue body, etc.)
+ * are stored elevated in the file (e.g. user's `#` → `##` in Description).
+ * The parser demotes them back to normal levels after extraction.
  */
 
 import type { Task, TaskStatus, TaskQuestion, TaskIssue, TaskLogEntry } from "@/types";
+import { demoteHeadings } from "@/lib/headings";
 
 /** Top-level sections identified by `# Heading` */
 type TopSection = "meta" | "description" | "questions" | "issues" | "log";
@@ -19,15 +22,15 @@ type TopSection = "meta" | "description" | "questions" | "issues" | "log";
 /** Sub-sections within the metadata area identified by `## Heading` */
 type MetaSubSection = "depends_on" | "tags" | "external_entities" | "helpers" | null;
 
-/** Sub-sections within an issue identified by `### Heading` */
-type IssueSubSection = "assignee" | "solution" | null;
-
 const META_SUBSECTION_MAP: Record<string, MetaSubSection> = {
   "depends on": "depends_on",
   "tags": "tags",
   "external entities": "external_entities",
   "helpers": "helpers",
 };
+
+/** Known structural ### headings within the issues section */
+const ISSUE_STRUCTURAL_H3 = new Set(["assignee", "solution"]);
 
 function createEmptyTask(id: string, group: string): Task {
   return {
@@ -62,41 +65,37 @@ export function parseTask(content: string, id: string, group: string): Task {
   let topSection: TopSection = "meta";
   let metaSubSection: MetaSubSection = null;
 
-  // Current question/issue/log being built
   let currentQuestion: TaskQuestion | null = null;
   let questionSubSection: "answer" | null = null;
 
   let currentIssue: TaskIssue | null = null;
-  let issueSubSection: IssueSubSection = null;
+  let issueSubSection: "assignee" | "solution" | null = null;
 
   let currentLog: TaskLogEntry | null = null;
 
-  /** Flush any in-progress question into the task */
   const flushQuestion = () => {
     if (currentQuestion) {
-      currentQuestion.answer = currentQuestion.answer.trim();
+      currentQuestion.answer = demoteHeadings(currentQuestion.answer.trim(), 3);
       task.questions.push(currentQuestion);
       currentQuestion = null;
       questionSubSection = null;
     }
   };
 
-  /** Flush any in-progress issue into the task */
   const flushIssue = () => {
     if (currentIssue) {
-      currentIssue.description = currentIssue.description.trim();
+      currentIssue.description = demoteHeadings(currentIssue.description.trim(), 2);
       currentIssue.assignee = currentIssue.assignee.trim();
-      currentIssue.solution = currentIssue.solution.trim();
+      currentIssue.solution = demoteHeadings(currentIssue.solution.trim(), 3);
       task.issues.push(currentIssue);
       currentIssue = null;
       issueSubSection = null;
     }
   };
 
-  /** Flush any in-progress log entry into the task */
   const flushLog = () => {
     if (currentLog) {
-      currentLog.body = currentLog.body.trim();
+      currentLog.body = demoteHeadings(currentLog.body.trim(), 2);
       task.log.push(currentLog);
       currentLog = null;
     }
@@ -105,17 +104,15 @@ export function parseTask(content: string, id: string, group: string): Task {
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
 
-    // ── `# Heading` — top-level section change ────────────────
-    if (line.startsWith("# ") && !line.startsWith("## ") && !line.startsWith("### ")) {
+    // ── `# Heading` — top-level section boundaries (always structural) ──
+    if (/^# (?!#)/.test(line)) {
       const heading = line.slice(2).trim();
 
       if (topSection === "meta" && !task.title) {
-        // First `# ` heading is the title
         task.title = heading;
         continue;
       }
 
-      // Flush any pending sub-items before switching top section
       flushQuestion();
       flushIssue();
       flushLog();
@@ -133,20 +130,17 @@ export function parseTask(content: string, id: string, group: string): Task {
       continue;
     }
 
-    // ── `## Heading` — second-level heading ───────────────────
-    if (line.startsWith("## ") && !line.startsWith("### ")) {
+    // ── `## Heading` — structural only in certain sections ──────────
+    if (/^## (?!#)/.test(line)) {
       const heading = line.slice(3).trim();
 
       if (topSection === "meta") {
-        // Sub-section within the metadata area (Depends On, Tags, etc.)
-        const key = heading.toLowerCase();
-        metaSubSection = META_SUBSECTION_MAP[key] ?? null;
+        metaSubSection = META_SUBSECTION_MAP[heading.toLowerCase()] ?? null;
         continue;
       }
 
       if (topSection === "questions") {
         flushQuestion();
-        // Check for [r] recurring marker
         const recurring = /\[r\]\s*$/.test(heading);
         const title = heading.replace(/\s*\[r\]\s*$/, "");
         currentQuestion = { title, recurring, answer: "" };
@@ -163,46 +157,36 @@ export function parseTask(content: string, id: string, group: string): Task {
 
       if (topSection === "log") {
         flushLog();
-        // Log heading format: `## YYYY_MM_DD Title text`
         const match = heading.match(/^(\d{4}_\d{2}_\d{2})\s+(.*)$/);
-        if (match) {
-          currentLog = { date: match[1]!, title: match[2]!, body: "" };
-        } else {
-          currentLog = { date: "", title: heading, body: "" };
-        }
+        currentLog = match
+          ? { date: match[1]!, title: match[2]!, body: "" }
+          : { date: "", title: heading, body: "" };
         continue;
       }
 
-      continue;
+      // In description/other: NOT structural → fall through to content
     }
 
-    // ── `### Heading` — third-level heading ───────────────────
-    if (line.startsWith("### ")) {
+    // ── `### Heading` — structural only for Answer/Assignee/Solution ──
+    if (/^### (?!#)/.test(line)) {
       const heading = line.slice(4).trim().toLowerCase();
 
-      if (topSection === "questions" && currentQuestion) {
-        if (heading === "answer") {
-          questionSubSection = "answer";
-        }
+      if (topSection === "questions" && currentQuestion && heading === "answer") {
+        questionSubSection = "answer";
         continue;
       }
 
-      if (topSection === "issues" && currentIssue) {
-        if (heading === "assignee") {
-          issueSubSection = "assignee";
-        } else if (heading === "solution") {
-          issueSubSection = "solution";
-        }
+      if (topSection === "issues" && currentIssue && ISSUE_STRUCTURAL_H3.has(heading)) {
+        issueSubSection = heading as "assignee" | "solution";
         continue;
       }
 
-      continue;
+      // In all other contexts: NOT structural → fall through to content
     }
 
-    // ── Content lines ─────────────────────────────────────────
+    // ── Content lines (including non-structural heading lines) ────────
 
     if (topSection === "meta" && metaSubSection === null) {
-      // Parse key: value metadata lines
       const metaMatch = line.match(/^(\w+):\s*(.*)$/);
       if (metaMatch) {
         const [, key, value] = metaMatch;
@@ -225,7 +209,6 @@ export function parseTask(content: string, id: string, group: string): Task {
     }
 
     if (topSection === "meta" && metaSubSection !== null) {
-      // Parse list items `- value`
       const listMatch = line.match(/^-\s+(.+)$/);
       if (listMatch) {
         task[metaSubSection].push(listMatch[1]!.trim());
@@ -242,7 +225,6 @@ export function parseTask(content: string, id: string, group: string): Task {
       if (questionSubSection === "answer") {
         currentQuestion.answer += line + "\n";
       }
-      // Lines between ## heading and ### Answer are remarks/context (not captured as structured data)
       continue;
     }
 
@@ -263,11 +245,10 @@ export function parseTask(content: string, id: string, group: string): Task {
     }
   }
 
-  // Flush any remaining in-progress items
   flushQuestion();
   flushIssue();
   flushLog();
-  task.description = task.description.trim();
+  task.description = demoteHeadings(task.description.trim(), 1);
 
   return task;
 }
