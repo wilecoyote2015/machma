@@ -1,5 +1,5 @@
 # Put Things on Top of Other Things
-deadline: -10d  
+deadline: -10  
 assignee: bs  
 n_helpers_needed: 5  
 status: finished
@@ -28,5 +28,4 @@ We want to put things on top of other things.
 ## What is the weight limit for stacking?
 
 # Issues
-
 # Log
