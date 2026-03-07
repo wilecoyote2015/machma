@@ -83,15 +83,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { dirHandle, project } = get();
     if (!dirHandle || !project) return;
 
-    // Update in-memory state
+    // Update in-memory state immediately
     const tasks = project.tasks.map((t) =>
       t.id === updatedTask.id ? updatedTask : t,
     );
     set({ project: { ...project, tasks } });
 
-    // Persist to disk
-    const filePath = `tasks/${updatedTask.group}/${updatedTask.id}.md`;
-    await writeTextFile(dirHandle, filePath, serializeTask(updatedTask));
+    // Persist to disk (errors are logged, not thrown, to avoid crashing the UI)
+    try {
+      const filePath = `tasks/${updatedTask.group}/${updatedTask.id}.md`;
+      await writeTextFile(dirHandle, filePath, serializeTask(updatedTask));
+    } catch (e) {
+      console.error("[store] Failed to write task file:", e);
+    }
   },
 
   toggleTagFilter: (tag) =>
