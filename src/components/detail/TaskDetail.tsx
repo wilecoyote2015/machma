@@ -1,14 +1,21 @@
 /**
  * Right sidebar panel showing the full detail of a selected task.
  *
- * Metadata fields map to dedicated UI widgets (dropdowns, inputs, chip lists).
- * Free-text sections (Description, Issues, Log) use MarkdownBlock with view/edit toggle.
+ * Organized into collapsible sections:
+ * - Metadata (deadline, status, assignee, group)
+ * - Helpers (merged: n_helpers_needed + assigned helpers in one section)
+ * - Dependencies, Tags, External Entities (chip lists)
+ * - Description (markdown)
+ * - Questions
+ * - Issues
+ * - Log
  */
 
 import { useCallback } from "react";
 import type { Task, TaskStatus, TaskQuestion, TaskIssue, TaskLogEntry } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { MarkdownBlock } from "@/components/common/MarkdownBlock";
+import { CollapsibleSection } from "@/components/common/CollapsibleSection";
 import { ChipList } from "@/components/detail/ChipList";
 import { resolveDeadline, formatDateTime } from "@/lib/dates";
 
@@ -21,9 +28,9 @@ interface TaskDetailProps {
 export function TaskDetail({ task }: TaskDetailProps) {
   const project = useProjectStore((s) => s.project)!;
   const updateTask = useProjectStore((s) => s.updateTask);
+  const deleteTask = useProjectStore((s) => s.deleteTask);
   const selectTask = useProjectStore((s) => s.selectTask);
 
-  /** Helper to update a single field on the task */
   const updateField = useCallback(
     <K extends keyof Task>(field: K, value: Task[K]) => {
       updateTask({ ...task, [field]: value });
@@ -31,13 +38,13 @@ export function TaskDetail({ task }: TaskDetailProps) {
     [task, updateTask],
   );
 
-  // Resolve deadline for display
   const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date);
-
-  // All available helper IDs and task IDs for chip list suggestions
   const helperIds = Object.keys(project.helpers);
   const taskIds = project.tasks.map((t) => t.id).filter((id) => id !== task.id);
   const entityIds = Object.keys(project.external_entities);
+
+  const unresolvedIssueCount = task.issues.filter((i) => !i.assignee && !i.solution).length;
+  const unansweredQuestionCount = task.questions.filter((q) => !q.answer.trim()).length;
 
   return (
     <div className="space-y-4 text-white">
@@ -53,110 +60,113 @@ export function TaskDetail({ task }: TaskDetailProps) {
         </button>
       </div>
 
-      {/* ── Metadata fields ──────────────────────────────── */}
-      <div className="space-y-2 text-sm">
-        {/* Deadline */}
-        <div className="flex items-center gap-2">
-          <label className="w-24 font-semibold">Deadline</label>
-          <input
-            value={task.deadline}
-            onChange={(e) => updateField("deadline", e.target.value)}
-            className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white placeholder-white/50 focus:border-white focus:outline-none"
-            placeholder="-5d or 2026-05-01"
+      {/* ── Metadata ─────────────────────────────────────── */}
+      <CollapsibleSection title="Metadata">
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Deadline</label>
+            <input
+              value={task.deadline}
+              onChange={(e) => updateField("deadline", e.target.value)}
+              className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white placeholder-white/50 focus:border-white focus:outline-none"
+              placeholder="-5d or 2026-05-01"
+            />
+            {resolvedDate && (
+              <span className="text-xs text-white/70">{formatDateTime(resolvedDate)}</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Status</label>
+            <select
+              value={task.status}
+              onChange={(e) => updateField("status", e.target.value as TaskStatus)}
+              className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s} className="text-black">
+                  {s.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Assignee</label>
+            <select
+              value={task.assignee}
+              onChange={(e) => updateField("assignee", e.target.value)}
+              className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
+            >
+              <option value="" className="text-black">—</option>
+              {helperIds.map((id) => (
+                <option key={id} value={id} className="text-black">
+                  {id} ({project.helpers[id]!.name})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Group</label>
+            <span>{task.group || "—"}</span>
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* ── Helpers (merged) ──────────────────────────────── */}
+      <CollapsibleSection
+        title="Helpers"
+        badge={`${task.helpers.length}/${task.n_helpers_needed}`}
+      >
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <label className="font-semibold">Required:</label>
+            <input
+              type="number"
+              min={0}
+              value={task.n_helpers_needed}
+              onChange={(e) => updateField("n_helpers_needed", parseInt(e.target.value, 10) || 0)}
+              className="w-16 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
+            />
+          </div>
+          <ChipList
+            label="Assigned"
+            items={task.helpers}
+            suggestions={helperIds}
+            renderLabel={(id) => project.helpers[id]?.name ?? id}
+            onChange={(items) => updateField("helpers", items)}
           />
-          {resolvedDate && (
-            <span className="text-xs text-white/70">{formatDateTime(resolvedDate)}</span>
-          )}
         </div>
+      </CollapsibleSection>
 
-        {/* Status */}
-        <div className="flex items-center gap-2">
-          <label className="w-24 font-semibold">Status</label>
-          <select
-            value={task.status}
-            onChange={(e) => updateField("status", e.target.value as TaskStatus)}
-            className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s} className="text-black">
-                {s.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Assignee */}
-        <div className="flex items-center gap-2">
-          <label className="w-24 font-semibold">Assignee</label>
-          <select
-            value={task.assignee}
-            onChange={(e) => updateField("assignee", e.target.value)}
-            className="flex-1 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
-          >
-            <option value="" className="text-black">—</option>
-            {helperIds.map((id) => (
-              <option key={id} value={id} className="text-black">
-                {id} ({project.helpers[id]!.name})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Helpers needed */}
-        <div className="flex items-center gap-2">
-          <label className="w-24 font-semibold">Helpers</label>
-          <input
-            type="number"
-            min={0}
-            value={task.n_helpers_needed}
-            onChange={(e) => updateField("n_helpers_needed", parseInt(e.target.value, 10) || 0)}
-            className="w-16 rounded border border-white/30 bg-white/10 px-2 py-1 text-white focus:border-white focus:outline-none"
+      {/* ── Relations ─────────────────────────────────────── */}
+      <CollapsibleSection title="Relations" defaultOpen={false}>
+        <div className="space-y-3">
+          <ChipList
+            label="Depends On"
+            items={task.depends_on}
+            suggestions={taskIds}
+            onChange={(items) => updateField("depends_on", items)}
           />
-          <span className="text-xs text-white/70">
-            ({task.helpers.length} assigned)
-          </span>
+          <ChipList
+            label="Tags"
+            items={task.tags}
+            allowCustom
+            onChange={(items) => updateField("tags", items)}
+          />
+          <ChipList
+            label="Ext. Entities"
+            items={task.external_entities}
+            suggestions={entityIds}
+            renderLabel={(id) => project.external_entities[id]?.name ?? id}
+            onChange={(items) => updateField("external_entities", items)}
+          />
         </div>
-
-        {/* Group (read-only display) */}
-        <div className="flex items-center gap-2">
-          <label className="w-24 font-semibold">Group</label>
-          <span>{task.group || "—"}</span>
-        </div>
-      </div>
-
-      {/* ── Chip lists ───────────────────────────────────── */}
-      <div className="space-y-3">
-        <ChipList
-          label="Depends On"
-          items={task.depends_on}
-          suggestions={taskIds}
-          onChange={(items) => updateField("depends_on", items)}
-        />
-        <ChipList
-          label="Tags"
-          items={task.tags}
-          allowCustom
-          onChange={(items) => updateField("tags", items)}
-        />
-        <ChipList
-          label="Helpers"
-          items={task.helpers}
-          suggestions={helperIds}
-          renderLabel={(id) => project.helpers[id]?.name ?? id}
-          onChange={(items) => updateField("helpers", items)}
-        />
-        <ChipList
-          label="Ext. Entities"
-          items={task.external_entities}
-          suggestions={entityIds}
-          renderLabel={(id) => project.external_entities[id]?.name ?? id}
-          onChange={(items) => updateField("external_entities", items)}
-        />
-      </div>
+      </CollapsibleSection>
 
       {/* ── Description ──────────────────────────────────── */}
-      <section>
-        <h3 className="mb-1 font-semibold">Description</h3>
+      <CollapsibleSection title="Description">
         <div className="rounded bg-white p-2 text-gray-800">
           <MarkdownBlock
             content={task.description}
@@ -164,11 +174,14 @@ export function TaskDetail({ task }: TaskDetailProps) {
             placeholder="No description"
           />
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* ── Questions ────────────────────────────────────── */}
-      <section>
-        <h3 className="mb-1 font-semibold">Questions ({task.questions.length})</h3>
+      <CollapsibleSection
+        title="Questions"
+        badge={unansweredQuestionCount > 0 ? `${unansweredQuestionCount} unanswered` : `${task.questions.length}`}
+        defaultOpen={task.questions.length > 0}
+      >
         {task.questions.map((q, i) => (
           <QuestionItem
             key={i}
@@ -194,11 +207,14 @@ export function TaskDetail({ task }: TaskDetailProps) {
         >
           + Add question
         </button>
-      </section>
+      </CollapsibleSection>
 
       {/* ── Issues ───────────────────────────────────────── */}
-      <section>
-        <h3 className="mb-1 font-semibold">Issues ({task.issues.length})</h3>
+      <CollapsibleSection
+        title="Issues"
+        badge={unresolvedIssueCount > 0 ? `${unresolvedIssueCount} open` : `${task.issues.length}`}
+        defaultOpen={task.issues.length > 0}
+      >
         {task.issues.map((issue, i) => (
           <IssueItem
             key={i}
@@ -225,11 +241,14 @@ export function TaskDetail({ task }: TaskDetailProps) {
         >
           + Add issue
         </button>
-      </section>
+      </CollapsibleSection>
 
       {/* ── Log ──────────────────────────────────────────── */}
-      <section>
-        <h3 className="mb-1 font-semibold">Log ({task.log.length})</h3>
+      <CollapsibleSection
+        title="Log"
+        badge={`${task.log.length}`}
+        defaultOpen={task.log.length > 0}
+      >
         {task.log.map((entry, i) => (
           <LogItem
             key={i}
@@ -257,12 +276,26 @@ export function TaskDetail({ task }: TaskDetailProps) {
         >
           + Add log entry
         </button>
-      </section>
+      </CollapsibleSection>
+
+      {/* ── Delete ───────────────────────────────────────── */}
+      <div className="border-t border-white/20 pt-3">
+        <button
+          onClick={() => {
+            if (confirm(`Delete task "${task.title}"?`)) {
+              deleteTask(task);
+            }
+          }}
+          className="text-sm text-red-300 hover:text-red-100"
+        >
+          Delete task...
+        </button>
+      </div>
     </div>
   );
 }
 
-// ── Sub-components for Questions, Issues, Log ──────────────────────
+// ── Sub-components ─────────────────────────────────────────────────
 
 function QuestionItem({
   question,

@@ -13,36 +13,33 @@ import { serializeTask } from "@/lib/serializer";
 // ── Store shape ────────────────────────────────────────────────────
 
 interface ProjectStore {
-  /** The directory handle for the open project (null if none open) */
   dirHandle: FileSystemDirectoryHandle | null;
-  /** The loaded project data (null if no project open) */
   project: Project | null;
-  /** ID of the currently selected task */
   selectedTaskId: string | null;
-  /** Current active view/tab */
-  activeView: "timeline" | "helpers" | "entities";
-  /** Filter state for the timeline */
+  activeView: "timeline" | "table" | "helpers" | "entities";
   filters: FilterState;
 
   // ── Actions ──────────────────────────────────────────────
   openProject: () => Promise<void>;
   reloadProject: () => Promise<void>;
   selectTask: (taskId: string | null) => void;
-  setActiveView: (view: "timeline" | "helpers" | "entities") => void;
+  setActiveView: (view: "timeline" | "table" | "helpers" | "entities") => void;
 
-  /** Update a task in the store and persist to disk */
   updateTask: (task: Task) => Promise<void>;
+  addTask: (group: string, id: string) => Promise<void>;
+  deleteTask: (task: Task) => Promise<void>;
 
   // ── Filter actions ───────────────────────────────────────
   toggleTagFilter: (tag: string) => void;
   toggleGroupFilter: (group: string) => void;
   toggleHelperFilter: (helperId: string) => void;
   toggleStatusFilter: (status: TaskStatus) => void;
+  setHasUnresolvedIssues: (value: boolean) => void;
+  setHasUnansweredQuestions: (value: boolean) => void;
+  setDeadlineWithinDays: (days: number | null) => void;
   clearFilters: () => void;
 
-  /** Update helpers.json on disk */
   saveHelpers: () => Promise<void>;
-  /** Update external_entities.json on disk */
   saveExternalEntities: () => Promise<void>;
 }
 
@@ -51,6 +48,9 @@ const emptyFilters = (): FilterState => ({
   groups: new Set(),
   helpers: new Set(),
   statuses: new Set(),
+  hasUnresolvedIssues: false,
+  hasUnansweredQuestions: false,
+  deadlineWithinDays: null,
 });
 
 // ── Store implementation ───────────────────────────────────────────
@@ -83,18 +83,69 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { dirHandle, project } = get();
     if (!dirHandle || !project) return;
 
-    // Update in-memory state immediately
     const tasks = project.tasks.map((t) =>
       t.id === updatedTask.id ? updatedTask : t,
     );
     set({ project: { ...project, tasks } });
 
-    // Persist to disk (errors are logged, not thrown, to avoid crashing the UI)
     try {
       const filePath = `tasks/${updatedTask.group}/${updatedTask.id}.md`;
       await writeTextFile(dirHandle, filePath, serializeTask(updatedTask));
     } catch (e) {
       console.error("[store] Failed to write task file:", e);
+    }
+  },
+
+  addTask: async (group, id) => {
+    const { dirHandle, project } = get();
+    if (!dirHandle || !project) return;
+
+    const newTask: Task = {
+      id,
+      group,
+      title: id.replace(/_/g, " "),
+      deadline: "",
+      assignee: "",
+      n_helpers_needed: 0,
+      status: "todo",
+      depends_on: [],
+      tags: [],
+      external_entities: [],
+      helpers: [],
+      description: "",
+      questions: [],
+      issues: [],
+      log: [],
+    };
+
+    set({ project: { ...project, tasks: [...project.tasks, newTask] }, selectedTaskId: id });
+
+    try {
+      const filePath = `tasks/${group}/${id}.md`;
+      await writeTextFile(dirHandle, filePath, serializeTask(newTask));
+    } catch (e) {
+      console.error("[store] Failed to create task file:", e);
+    }
+  },
+
+  deleteTask: async (task) => {
+    const { dirHandle, project } = get();
+    if (!dirHandle || !project) return;
+
+    const tasks = project.tasks.filter((t) => t.id !== task.id);
+    const selectedTaskId = get().selectedTaskId === task.id ? null : get().selectedTaskId;
+    set({ project: { ...project, tasks }, selectedTaskId });
+
+    try {
+      const tasksDir = await dirHandle.getDirectoryHandle("tasks");
+      const parts = task.group.split("/");
+      let groupDir: FileSystemDirectoryHandle = tasksDir;
+      for (const part of parts) {
+        groupDir = await groupDir.getDirectoryHandle(part);
+      }
+      await groupDir.removeEntry(`${task.id}.md`);
+    } catch (e) {
+      console.error("[store] Failed to delete task file:", e);
     }
   },
 
@@ -129,6 +180,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       else statuses.add(status);
       return { filters: { ...s.filters, statuses } };
     }),
+
+  setHasUnresolvedIssues: (value) =>
+    set((s) => ({ filters: { ...s.filters, hasUnresolvedIssues: value } })),
+
+  setHasUnansweredQuestions: (value) =>
+    set((s) => ({ filters: { ...s.filters, hasUnansweredQuestions: value } })),
+
+  setDeadlineWithinDays: (days) =>
+    set((s) => ({ filters: { ...s.filters, deadlineWithinDays: days } })),
 
   clearFilters: () => set({ filters: emptyFilters() }),
 

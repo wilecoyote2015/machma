@@ -16,6 +16,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { computeLayout } from "./layout";
 import { TaskNode } from "./TaskNode";
 import { TimelineTickNode } from "./TimelineTickNode";
+import { applyFilters } from "@/lib/filters";
 
 const nodeTypes: NodeTypes = {
   taskNode: TaskNode,
@@ -28,24 +29,10 @@ export function TimelineView() {
   const selectedTaskId = useProjectStore((s) => s.selectedTaskId);
   const selectTask = useProjectStore((s) => s.selectTask);
 
-  // Apply filters to tasks
-  const filteredTasks = useMemo(() => {
-    return project.tasks.filter((task) => {
-      if (filters.tags.size > 0 && !task.tags.some((t) => filters.tags.has(t)))
-        return false;
-      if (filters.groups.size > 0 && !filters.groups.has(task.group))
-        return false;
-      if (
-        filters.helpers.size > 0 &&
-        !task.helpers.some((h) => filters.helpers.has(h)) &&
-        !filters.helpers.has(task.assignee)
-      )
-        return false;
-      if (filters.statuses.size > 0 && !filters.statuses.has(task.status))
-        return false;
-      return true;
-    });
-  }, [project.tasks, filters]);
+  const filteredTasks = useMemo(
+    () => applyFilters(project.tasks, filters, project.meta.anchor_date),
+    [project.tasks, filters, project.meta.anchor_date],
+  );
 
   // Compute layout from filtered tasks
   const { nodes, edges } = useMemo(

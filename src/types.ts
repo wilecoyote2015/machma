@@ -152,4 +152,10 @@ export interface FilterState {
   helpers: Set<string>;
   /** Only show tasks with these statuses (empty = show all) */
   statuses: Set<TaskStatus>;
+  /** If true, only show tasks with unresolved issues */
+  hasUnresolvedIssues: boolean;
+  /** If true, only show tasks with unanswered questions */
+  hasUnansweredQuestions: boolean;
+  /** If set, only show tasks with deadline within this many days from now (null = no filter) */
+  deadlineWithinDays: number | null;
 }

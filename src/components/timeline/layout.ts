@@ -31,10 +31,11 @@ export interface TimelineTickData extends Record<string, unknown> {
 }
 
 const GROUP_GAP = 220;
-const Y_PIXELS_PER_DAY = 60;
 const TIMELINE_X = 0;
 const NODES_START_X = 140;
 const TIMELINE_PADDING_DAYS = 3;
+const MIN_NODE_SPACING = 90;
+const BASE_PIXELS_PER_DAY = 40;
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -57,20 +58,18 @@ function generateTickDates(minDate: Date, maxDate: Date): Date[] {
   const rangeDays = (maxDate.getTime() - minDate.getTime()) / MS_PER_DAY;
   const intervalDays = chooseTickInterval(rangeDays);
 
-  // Align the first tick to the start of the range (floored to interval boundary)
   const start = new Date(minDate);
   start.setHours(0, 0, 0, 0);
 
   const ticks: Date[] = [];
   const cursor = new Date(start);
-  const end = maxDate.getTime() + MS_PER_DAY; // include the max date
+  const end = maxDate.getTime() + MS_PER_DAY;
 
   while (cursor.getTime() <= end) {
     ticks.push(new Date(cursor));
     cursor.setDate(cursor.getDate() + intervalDays);
   }
 
-  // Ensure at least 2 ticks
   if (ticks.length < 2) {
     ticks.push(new Date(end));
   }
@@ -78,9 +77,62 @@ function generateTickDates(minDate: Date, maxDate: Date): Date[] {
   return ticks;
 }
 
-/** Convert a date to a Y position given a reference minimum date. */
-function dateToY(date: Date, minTime: number): number {
-  return ((date.getTime() - minTime) / MS_PER_DAY) * Y_PIXELS_PER_DAY;
+/**
+ * Build a smart Y-position mapper that dynamically scales based on task density.
+ *
+ * Strategy: compute a linear mapping from time to Y, then walk through sorted
+ * task dates and push any that are too close (< MIN_NODE_SPACING) further apart.
+ * The result is a piecewise-linear mapping stored as (time, y) control points.
+ * Timeline ticks are placed using the same mapping so they stay aligned.
+ */
+function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
+  const rangeDays = (maxTime - minTime) / MS_PER_DAY;
+  if (rangeDays === 0) {
+    return (_time: number) => 0;
+  }
+
+  // Sort unique task times
+  const sorted = [...new Set(taskDates.map((d) => d.getTime()))].sort((a, b) => a - b);
+
+  // Build control points: start with base linear mapping, then enforce minimum spacing
+  const points: { time: number; y: number }[] = [];
+  let currentY = 0;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i]!;
+    const linearY = ((t - minTime) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+    const y = Math.max(linearY, currentY);
+    points.push({ time: t, y });
+    currentY = y + MIN_NODE_SPACING;
+  }
+
+  // If no tasks, fall back to pure linear
+  if (points.length === 0) {
+    return (time: number) => ((time - minTime) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+  }
+
+  // Map arbitrary time to Y by interpolating between control points
+  return (time: number): number => {
+    if (time <= points[0]!.time) {
+      // Before first task: use linear scale from origin
+      const ratio = points[0]!.time === minTime ? 1 : points[0]!.y / (points[0]!.time - minTime);
+      return Math.max(0, (time - minTime) * ratio);
+    }
+    if (time >= points[points.length - 1]!.time) {
+      const last = points[points.length - 1]!;
+      return last.y + ((time - last.time) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+    }
+    // Find surrounding control points and interpolate
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i]!;
+      const b = points[i + 1]!;
+      if (time >= a.time && time <= b.time) {
+        const t = (time - a.time) / (b.time - a.time);
+        return a.y + t * (b.y - a.y);
+      }
+    }
+    return 0;
+  };
 }
 
 /**
@@ -130,13 +182,17 @@ export function computeLayout(
   const minDate = new Date(rawMinTime - TIMELINE_PADDING_DAYS * MS_PER_DAY);
   const maxDate = new Date(rawMaxTime + TIMELINE_PADDING_DAYS * MS_PER_DAY);
   const minTime = minDate.getTime();
+  const maxTime = maxDate.getTime();
+
+  // Build smart Y mapper that adapts spacing to task density
+  const timeToY = buildYMapper(dates, minTime, maxTime);
 
   // ── Generate timeline tick nodes ──────────────────────────────────
   const tickDates = generateTickDates(minDate, maxDate);
   const tickNodes: Node<TimelineTickData>[] = tickDates.map((date, i) => ({
     id: `__tick_${i}`,
     type: "timelineTick",
-    position: { x: TIMELINE_X, y: dateToY(date, minTime) },
+    position: { x: TIMELINE_X, y: timeToY(date.getTime()) },
     data: {
       label: formatDate(date),
       isFirst: i === 0,
@@ -157,19 +213,17 @@ export function computeLayout(
     style: { stroke: "#6B7280", strokeWidth: 2 },
     selectable: false,
     focusable: false,
-    // Arrow on the last segment only
     ...(i === tickDates.length - 2
       ? { markerEnd: { type: "arrowclosed" as const, color: "#6B7280" } }
       : {}),
   }));
 
   // ── Task nodes ────────────────────────────────────────────────────
-  const undatedY =
-    dateToY(maxDate, minTime) + TIMELINE_PADDING_DAYS * Y_PIXELS_PER_DAY;
+  const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
   const taskNodes: Node<TaskNodeData>[] = resolved.map(({ task, date }) => {
     const col = groupXIndex.get(task.group) ?? 0;
-    const y = date ? dateToY(date, minTime) : undatedY;
+    const y = date ? timeToY(date.getTime()) : undatedY;
 
     return {
       id: task.id,

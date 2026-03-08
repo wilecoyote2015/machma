@@ -1,19 +1,21 @@
 /**
  * Main application shell with three-panel layout:
  * - Left: Filter panel (collapsible)
- * - Center: Timeline view (or helpers/entities management)
- * - Right: Task detail panel (collapsible, shown when a task is selected)
- *
- * Also includes a top bar with project name and navigation.
+ * - Center: Timeline, Table, Helpers, or Entities view
+ * - Right: Task detail panel (when a task is selected in timeline/table)
  */
 
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { FilterPanel } from "@/components/filters/FilterPanel";
 import { TimelineView } from "@/components/timeline/TimelineView";
+import { TaskTableView } from "@/components/table/TaskTableView";
 import { TaskDetail } from "@/components/detail/TaskDetail";
 import { HelpersView } from "@/components/common/HelpersView";
 import { EntitiesView } from "@/components/common/EntitiesView";
+import { AddTaskDialog } from "@/components/common/AddTaskDialog";
+
+type ActiveView = "timeline" | "table" | "helpers" | "entities";
 
 export function AppShell() {
   const project = useProjectStore((s) => s.project)!;
@@ -22,15 +24,20 @@ export function AppShell() {
   const setActiveView = useProjectStore((s) => s.setActiveView);
   const openProject = useProjectStore((s) => s.openProject);
   const [leftOpen, setLeftOpen] = useState(true);
+  const [showAddTask, setShowAddTask] = useState(false);
 
   const selectedTask = selectedTaskId
     ? project.tasks.find((t) => t.id === selectedTaskId) ?? null
     : null;
 
-  const navItems = [
-    { key: "timeline" as const, label: "Timeline" },
-    { key: "helpers" as const, label: "Helpers" },
-    { key: "entities" as const, label: "Entities" },
+  const showsFilters = activeView === "timeline" || activeView === "table";
+  const showsDetail = showsFilters && selectedTask;
+
+  const navItems: { key: ActiveView; label: string }[] = [
+    { key: "timeline", label: "Timeline" },
+    { key: "table", label: "Table" },
+    { key: "helpers", label: "Helpers" },
+    { key: "entities", label: "Entities" },
   ];
 
   return (
@@ -67,8 +74,14 @@ export function AppShell() {
           ))}
           <div className="mx-2 h-5 w-px bg-gray-200" />
           <button
+            onClick={() => setShowAddTask(true)}
+            className="rounded bg-orange-500 px-3 py-1 text-sm font-medium text-white hover:bg-orange-600"
+          >
+            + New Task
+          </button>
+          <button
             onClick={openProject}
-            className="text-sm text-gray-400 hover:text-gray-600"
+            className="ml-1 text-sm text-gray-400 hover:text-gray-600"
             title="Open another project"
           >
             Open...
@@ -78,27 +91,27 @@ export function AppShell() {
 
       {/* ── Content area ─────────────────────────────────── */}
       <div className="flex min-h-0 flex-1">
-        {/* Left panel */}
-        {leftOpen && activeView === "timeline" && (
+        {leftOpen && showsFilters && (
           <aside className="w-64 shrink-0 overflow-y-auto border-r border-gray-200 bg-orange-500 p-4">
             <FilterPanel />
           </aside>
         )}
 
-        {/* Center */}
         <main className="min-w-0 flex-1">
           {activeView === "timeline" && <TimelineView />}
+          {activeView === "table" && <TaskTableView />}
           {activeView === "helpers" && <HelpersView />}
           {activeView === "entities" && <EntitiesView />}
         </main>
 
-        {/* Right panel — task detail */}
-        {selectedTask && activeView === "timeline" && (
+        {showsDetail && (
           <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-200 bg-orange-500 p-4">
             <TaskDetail task={selectedTask} />
           </aside>
         )}
       </div>
+
+      {showAddTask && <AddTaskDialog onClose={() => setShowAddTask(false)} />}
     </div>
   );
 }
