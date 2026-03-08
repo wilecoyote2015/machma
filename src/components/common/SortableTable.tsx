@@ -173,7 +173,7 @@ export function SortableTable<T>({
                   } ${isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"}`}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={col.cellClassName ?? "px-2 py-2"}>
+                    <td key={col.key} className={col.cellClassName ?? "px-2 py-0"}>
                       {col.render(row)}
                     </td>
                   ))}
