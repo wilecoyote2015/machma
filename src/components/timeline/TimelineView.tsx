@@ -9,7 +9,7 @@
  * - Dependency edges are colored by the source task's status.
  */
 
-import { useMemo, useCallback, useState, useRef } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -17,6 +17,7 @@ import {
   MiniMap,
   applyEdgeChanges,
   applyNodeChanges,
+  type ReactFlowInstance,
   type NodeMouseHandler,
   type NodeTypes,
   type Node,
@@ -297,6 +298,32 @@ export function TimelineView() {
     [filteredTasks],
   );
 
+  // ── React Flow instance for programmatic control ──────────────────
+  // Only the `fitView` method is needed; use a minimal pick to avoid
+  // generic variance issues with the inferred node type.
+  const rfInstanceRef = useRef<Pick<ReactFlowInstance, "fitView"> | null>(null);
+
+  const onInit = useCallback((instance: Pick<ReactFlowInstance, "fitView">) => {
+    rfInstanceRef.current = instance;
+  }, []);
+
+  // ── Ctrl+F shortcut: fit view ─────────────────────────────────────
+  // Listens on window so it fires regardless of which panel is hovered.
+  // Only active while TimelineView is mounted.
+  const fitViewOptionsRef = useRef({ padding: 0.3, nodes: fitViewNodes });
+  fitViewOptionsRef.current = { padding: 0.3, nodes: fitViewNodes };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "f") {
+        e.preventDefault();
+        rfInstanceRef.current?.fitView(fitViewOptionsRef.current);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <ViewLayout
       filterPanel={<FilterPanel />}
@@ -313,6 +340,7 @@ export function TimelineView() {
           onEdgesChange={onEdgesChange}
           onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
+          onInit={onInit}
           isValidConnection={isValidConnection}
           connectionLineStyle={connectionLineStyle}
           fitView
@@ -321,7 +349,7 @@ export function TimelineView() {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
-          <Background />
+          <Background/>
           <Controls fitViewOptions={{ padding: 0.3, nodes: fitViewNodes }} />
           <MiniMap
             nodeColor={(node) => {

@@ -1,9 +1,7 @@
 - PDF and Excel export of the full tables and the helper list
-- Milestone Functionality: a milestone is one md document in a "milestones" directory. Milestone will be drawn as vertical line in the timeline view and at timeline, there is an icon to click to open milestone details. Milestone hline is drawn so that it is below the last node of that day.
-- Filter tasks by entered deadline date range or single date -> preset buttons simply change start and end date
-- Option to specify a time for tasks. Should be a separate field for the deadline: the deadline date is the currently existing field. Then an additional time field that can also be left empty
-- Macro timeline for individual days -> easily achievable by filtering by day in the current timeline. So no new timeline view or so needed. One may just select one day, zoom in and see everything. But clock time ticks would be nice if filter range is only covering 1 or 2 days (draw whole timeline still, but hour ticks in the region of that day). But: The vertical arrangement in the timeline must then also be sufficiently high-resolution so that different times have different vertical positions. is that already the case? I guess not as no support for time was present in the timeline before.
-- Add anchor date datetime filter preset buttons: exactlyu, up to 7 days before etc.
-- datetime picker like md date format yyyy/mm/dd
-- tasks table: maek deadline column a bit wider to fit time into same row
-- Add "role" field to helper data. Will be shown in table
+- Milestone Functionality: a milestone is one md document in a "milestones" directory. Milestone will be drawn as horizontal line in the timeline view and at timeline, there is an icon to click to open milestone details. Milestone hline is drawn so that it is below the last node of that day.
+- make project metadata an md file instead of json. The file shall be similar to tasks: first heading is the project name. Anchor date is the second section. Then there is a description and also a questions section, like in taks (but no issues etc.). The questions from here show up in the questions view table with - in the task column.
+- "Project" view for editing project metadata.
+- task start time / date refinement: if start time is set, but not start date, assume it is the same day as the deadline. If start date is set, but not start time, assume it is 00:00.
+- Vertical drag-and-drop of nodes to set deadline: snaps to days in normal view and 15 mins in day view. Handle tasks with start time and date correctly! dragging the node sets the star time here and the offset to the deadline is kept from before, so that task length stays the same.
+- Sorting in sortable tables: secondary sorting is always by name

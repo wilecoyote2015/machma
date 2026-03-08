@@ -42,6 +42,8 @@ A React Flow canvas showing tasks as nodes positioned on a vertical date axis. E
 
 **Interactive dependency editing**: Drag from a node's bottom handle to another node's top handle to create a dependency. Select a dependency edge and press Delete/Backspace to remove it. Connection validation prevents self-references and duplicates.
 
+**Keyboard shortcuts**: Press Ctrl+F to fit all visible tasks into the viewport (same as the fit-view button in the controls). Works regardless of whether the mouse is over the canvas, filter panel, or detail panel.
+
 **Stable timeline axis**: The vertical date axis always spans the full date range across all tasks, regardless of active filters. This means task Y positions and the timeline itself stay fixed when toggling filters — the user always keeps temporal orientation. Filtered-out tasks simply disappear from the canvas; they don't shift the remaining nodes' positions.
 
 **Day-view mode**: When the deadline date range filter covers 1–2 days, the timeline automatically switches to a high-resolution day view with hourly tick marks (instead of daily/weekly). Tasks with different time-of-day values are positioned at visually distinct vertical positions, enabling fine-grained scheduling within a single day.
