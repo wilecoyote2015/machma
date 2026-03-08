@@ -136,6 +136,20 @@ User-written headings inside content sections are elevated on save (e.g. `#` →
 3. **Dependency-aware lane preference:** When a task depends on another task in the same group, it prefers the dependency's sub-lane for vertical alignment of related chains.
 4. **Dynamic band widths:** Each group's horizontal band width adapts to the number of sub-lanes it needs (`numLanes * NODE_WIDTH + gaps`). Groups are spaced with a fixed gap between bands.
 
+**Dependency edge visuals:** Dependency edges are dashed lines with arrowhead markers indicating direction. Each edge is colored by the **source** (parent/blocking) task's status:
+- **gray** — `todo` (default, not yet started)
+- **yellow** — `in_progress` (actively being worked on, still blocking)
+- **green** — `finished` (dependency satisfied)
+- **red** — `cancelled` (dependency was cancelled)
+
+Color constants live in `EDGE_COLOR` in `lib/constants.ts`.
+
+**Interactive dependency editing:** Users can create and remove dependencies directly on the canvas:
+- **Create:** Drag from a node's bottom handle (source) to another node's top handle (target). Validation prevents self-references, duplicate edges, and connections to timeline tick nodes.
+- **Remove:** Select a dependency edge (click it), then press Delete or Backspace.
+
+Both operations persist immediately to disk via `updateTask` in the Zustand store. Edges are derived from task data (`depends_on`) on every render — a local `useState` mirrors the computed edges to support React Flow's controlled-edge selection/deletion API, synced via `useEffect`.
+
 ### ViewLayout Abstraction
 
 The `ViewLayout` component encapsulates the three-panel pattern (filter sidebar | main content | detail sidebar). Each view (Timeline, Tasks, Issues, Questions) wraps itself in ViewLayout and passes its own filter and detail panels. This decouples panel management from AppShell.
@@ -171,7 +185,7 @@ ViewLayout handles responsive breakpoints:
 
 ### Centralized Theming
 
-All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (primary, issue, question, success, panel, etc.). Reusable CSS classes (`.btn-primary`, `.btn-secondary`, `.input-light`, `.input-panel`, `.select-panel`) are defined with `@apply`. Hex constants for non-CSS contexts (React Flow node data, inline styles) live in `lib/constants.ts`.
+All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (primary, issue, question, success, panel, etc.). Reusable CSS classes (`.btn-primary`, `.btn-secondary`, `.input-light`, `.input-panel`, `.select-panel`) are defined with `@apply`. Hex constants for non-CSS contexts (React Flow node data, inline styles) live in `lib/constants.ts`, including `EDGE_COLOR` — a status-keyed map of dependency edge colors.
 
 ### Shared UI Primitives
 

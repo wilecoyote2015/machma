@@ -38,7 +38,9 @@ npx serve dist
 The app has six views, accessible via the top navigation bar:
 
 ### Timeline
-A React Flow canvas showing tasks as nodes positioned on a vertical date axis. Each node is colored by its group, shows the task title, resolved deadline, assignee initials, and indicators for unresolved issues (red dot) and unanswered questions (orange "?"). Dependency arrows connect tasks. A left filter panel and right detail panel can be opened/closed. Groups are ordered horizontally by dependency connectivity (connected groups are placed adjacent), and tasks within the same group automatically spread into sub-lanes when they share similar deadlines, preventing overlap while keeping related dependency chains vertically aligned.
+A React Flow canvas showing tasks as nodes positioned on a vertical date axis. Each node is colored by its group, shows the task title, resolved deadline, assignee initials, and indicators for unresolved issues (red dot) and unanswered questions (orange "?"). Dependency arrows connect tasks — colored by the parent task's status (yellow = in progress, green = finished, red = cancelled, gray = todo) so you can instantly see which blockers are resolved. A left filter panel and right detail panel can be opened/closed. Groups are ordered horizontally by dependency connectivity (connected groups are placed adjacent), and tasks within the same group automatically spread into sub-lanes when they share similar deadlines, preventing overlap while keeping related dependency chains vertically aligned.
+
+**Interactive dependency editing**: Drag from a node's bottom handle to another node's top handle to create a dependency. Select a dependency edge and press Delete/Backspace to remove it. Connection validation prevents self-references and duplicates.
 
 ### Tasks
 A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee, helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. Click a row to open the task detail panel.

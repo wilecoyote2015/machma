@@ -1,5 +1,8 @@
 /**
  * Custom React Flow node for displaying a task on the timeline.
+ *
+ * Top handle  = target (input)  — drop a connection here to add a dependency.
+ * Bottom handle = source (output) — drag from here to create a dependency.
  */
 
 import { memo } from "react";
@@ -10,6 +13,13 @@ import { statusBorderClass } from "@/components/ui/StatusBadge";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
+
+/**
+ * Shared Tailwind classes for connection handles.
+ * Larger hit-area + hover glow make them easy to discover and grab.
+ */
+const HANDLE_CLASS =
+  "!w-3 !h-3 !bg-gray-300 !border-2 !border-white/60 hover:!bg-primary hover:!border-white transition-colors";
 
 function TaskNodeComponent({ data, selected }: NodeProps) {
   const {
@@ -31,7 +41,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
       }`}
       style={{ backgroundColor: groupColor, minWidth: 160, padding: "8px 10px" }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-400" />
+      <Handle type="target" position={Position.Top} className={HANDLE_CLASS} />
 
       <div className="text-sm font-semibold leading-tight text-white drop-shadow-sm">
         {task.title}
@@ -56,7 +66,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400" />
+      <Handle type="source" position={Position.Bottom} className={HANDLE_CLASS} />
     </div>
   );
 }

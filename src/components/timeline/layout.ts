@@ -14,10 +14,10 @@
  * - Tasks without a deadline are placed below the last date.
  */
 
-import type { Node, Edge } from "@xyflow/react";
+import { MarkerType, type Node, type Edge } from "@xyflow/react";
 import type { Task, TaskGroup } from "@/types";
 import { resolveDeadline, formatDate } from "@/lib/dates";
-import { DEFAULT_GROUP_COLOR, AXIS_COLOR } from "@/lib/constants";
+import { DEFAULT_GROUP_COLOR, AXIS_COLOR, EDGE_COLOR } from "@/lib/constants";
 
 /** Data payload attached to each task node */
 export interface TaskNodeData extends Record<string, unknown> {
@@ -460,6 +460,7 @@ export function computeLayout(
     style: { stroke: AXIS_COLOR, strokeWidth: 2 },
     selectable: false,
     focusable: false,
+    deletable: false,
     ...(i === tickDates.length - 2
       ? { markerEnd: { type: "arrowclosed" as const, color: AXIS_COLOR } }
       : {}),
@@ -506,16 +507,34 @@ function buildTaskNodeData(
   };
 }
 
-/** Build dependency edges between tasks. */
+/**
+ * Build dependency edges between tasks.
+ *
+ * Each edge is colored by the **source** (parent/dependency) task's status
+ * so the user can immediately see which blocking tasks are done, in progress,
+ * or cancelled.  An arrowhead in the matching color indicates direction.
+ */
 function buildDependencyEdges(tasks: Task[]): Edge[] {
+  const taskStatusMap = new Map(tasks.map((t) => [t.id, t.status]));
   const edges: Edge[] = [];
+
   for (const task of tasks) {
     for (const depId of task.depends_on) {
+      const sourceStatus = taskStatusMap.get(depId) ?? "todo";
+      const color = EDGE_COLOR[sourceStatus] ?? EDGE_COLOR.todo!;
+
       edges.push({
         id: `${depId}->${task.id}`,
         source: depId,
         target: task.id,
-        style: { strokeDasharray: "6 3", stroke: AXIS_COLOR },
+        style: { strokeDasharray: "6 3", stroke: color, strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color,
+          width: 18,
+          height: 18,
+        },
+        deletable: true,
       });
     }
   }
