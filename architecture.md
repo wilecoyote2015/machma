@@ -83,10 +83,14 @@ src/
 │   │   └── FilterToggleGroup.tsx     # Toggle button group for filter chips
 │   │
 │   ├── filters/
-│   │   └── FilterPanel.tsx           # Left sidebar: deadline, flags, status, tags, groups, helpers
+│   │   ├── FilterPanel.tsx           # Left sidebar: deadline, flags, status, tags, groups, helpers
+│   │   ├── IssueFilterPanel.tsx      # Left sidebar for Issues view: issue status, assignees, groups, deadline
+│   │   └── QuestionFilterPanel.tsx   # Left sidebar for Questions view: question status, assignees, groups, deadline
 │   │
 │   ├── detail/
 │   │   ├── TaskDetail.tsx            # Right sidebar: full task editing via PanelSections
+│   │   ├── IssueDetail.tsx           # Right sidebar: single issue detail with task link
+│   │   ├── QuestionDetail.tsx        # Right sidebar: single question detail with task link
 │   │   ├── ChipList.tsx              # Interactive add/remove chip list for arrays
 │   │   ├── QuestionItem.tsx          # Single question entry with answer editing
 │   │   ├── IssueItem.tsx             # Single issue entry with assignee + solution
@@ -99,7 +103,9 @@ src/
 │   │   └── layout.ts                 # Smart layout: date→Y mapping, group→X columns, tick generation
 │   │
 │   └── table/
-│       └── TaskTableView.tsx         # Sortable "Tasks" table wrapped in ViewLayout
+│       ├── TaskTableView.tsx         # Sortable "Tasks" table wrapped in ViewLayout
+│       ├── IssueTableView.tsx        # Flat issue table across all tasks, with local filters
+│       └── QuestionTableView.tsx     # Flat question table across all tasks, with local filters
 ```
 
 ## Key Design Decisions
@@ -116,13 +122,26 @@ Task `.md` files are parsed into structured `Task` objects by a state-machine pa
 
 User-written headings inside content sections are elevated on save (e.g. `#` → `##` in Description) to avoid collision with structural markdown markers, and demoted on load. This is transparent to the user.
 
-### Smart Timeline Scaling
+### Smart Timeline Layout
 
-The timeline Y-axis uses a non-linear mapping: a `buildYMapper` function walks sorted task dates and enforces minimum spacing between adjacent nodes, stretching dense clusters and compressing sparse gaps. Timeline tick marks share the same mapping so dates stay aligned.
+**Y-axis (date mapping):** The timeline Y-axis uses a non-linear mapping: a `buildYMapper` function walks sorted task dates and enforces minimum spacing between adjacent nodes, stretching dense clusters and compressing sparse gaps. Timeline tick marks share the same mapping so dates stay aligned.
+
+**X-axis (intelligent group lanes):** The horizontal layout uses a multi-step algorithm in `layout.ts`:
+
+1. **Group ordering by connectivity:** Groups are ordered so that groups with cross-group dependencies are placed adjacent. A greedy approach seeds with the most-connected group and iteratively appends the next most-connected group.
+2. **Per-group sub-lane assignment:** Within each group, a greedy interval-scheduling algorithm assigns tasks to sub-lanes. Tasks are processed top-to-bottom (by Y position); each is placed in the first lane where it doesn't vertically collide with an existing task (collision detection uses an estimated `NODE_HEIGHT`).
+3. **Dependency-aware lane preference:** When a task depends on another task in the same group, it prefers the dependency's sub-lane for vertical alignment of related chains.
+4. **Dynamic band widths:** Each group's horizontal band width adapts to the number of sub-lanes it needs (`numLanes * NODE_WIDTH + gaps`). Groups are spaced with a fixed gap between bands.
 
 ### ViewLayout Abstraction
 
-The `ViewLayout` component encapsulates the three-panel pattern (filter sidebar | main content | detail sidebar). Each view (Timeline, Table, future Issue/Question tables) wraps itself in ViewLayout and passes its own filter and detail panels. This decouples panel management from AppShell.
+The `ViewLayout` component encapsulates the three-panel pattern (filter sidebar | main content | detail sidebar). Each view (Timeline, Tasks, Issues, Questions) wraps itself in ViewLayout and passes its own filter and detail panels. This decouples panel management from AppShell.
+
+### Issue & Question Table Views
+
+The Issues and Questions views flatten all issues/questions from all tasks into a single sortable table. Each row represents one issue or question, joined with its parent task's metadata (group, deadline, assignee). Filter and selection state are managed locally within each view component (not in the global store), since these filters are view-specific and not shared with other views.
+
+The detail panels (`IssueDetail`, `QuestionDetail`) show the selected item's fields with inline editing. They display a clickable parent task name that, when clicked, replaces the panel content with the full `TaskDetail` component (reused from the Tasks view), with a back button to return to the item detail. This allows navigating from an issue/question to its parent task without leaving the current view.
 
 ### Responsive Design
 
@@ -149,7 +168,7 @@ A single Zustand store (`project-store.ts`) holds:
 - `dirHandle`: the open directory handle
 - `project`: the full parsed Project model (tasks, groups, helpers, entities)
 - `selectedTaskId`: currently selected task
-- `activeView`: which tab is shown (timeline, table, helpers, entities)
+- `activeView`: which tab is shown (timeline, table, issues, questions, helpers, entities)
 - `filters`: all filter state (tags, groups, helpers, statuses, flags, deadline proximity)
 - Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles, `saveHelpers`, `saveExternalEntities`
 

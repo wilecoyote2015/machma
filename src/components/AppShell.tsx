@@ -7,15 +7,19 @@ import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { TimelineView } from "@/components/timeline/TimelineView";
 import { TaskTableView } from "@/components/table/TaskTableView";
+import { IssueTableView } from "@/components/table/IssueTableView";
+import { QuestionTableView } from "@/components/table/QuestionTableView";
 import { HelpersView } from "@/components/common/HelpersView";
 import { EntitiesView } from "@/components/common/EntitiesView";
 import { AddTaskDialog } from "@/components/common/AddTaskDialog";
 
-type ActiveView = "timeline" | "table" | "helpers" | "entities";
+type ActiveView = "timeline" | "table" | "issues" | "questions" | "helpers" | "entities";
 
 const NAV_ITEMS: { key: ActiveView; label: string }[] = [
   { key: "timeline", label: "Timeline" },
   { key: "table", label: "Tasks" },
+  { key: "issues", label: "Issues" },
+  { key: "questions", label: "Questions" },
   { key: "helpers", label: "Helpers" },
   { key: "entities", label: "Entities" },
 ];
@@ -70,6 +74,8 @@ export function AppShell() {
       <div className="flex min-h-0 flex-1">
         {activeView === "timeline" && <TimelineView />}
         {activeView === "table" && <TaskTableView />}
+        {activeView === "issues" && <IssueTableView />}
+        {activeView === "questions" && <QuestionTableView />}
         {activeView === "helpers" && <HelpersView />}
         {activeView === "entities" && <EntitiesView />}
       </div>

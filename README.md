@@ -6,7 +6,7 @@ Machma is a lean, text-based task management tool for events and projects. It ru
 
 - **Text-file based**: All project data is stored as `.md` and `.json` files. Edit them with any text editor, version-control with git, and use Machma's UI for visual management.
 - **Timeline view**: Interactive graph showing tasks as colored nodes on a vertical timeline, with dependency arrows, pan/zoom, and smart density-aware spacing.
-- **Table view**: Sortable task table with columns for deadline, assignee, helpers, status, group, and issue/question indicators.
+- **Tasks view**: Sortable task table with columns for title, group, deadline, assignee, helpers, status, issues, questions, and a truncated description preview.
 - **Rich filtering**: Filter by deadline proximity, status, tags, groups, helpers, unresolved issues, and unanswered questions.
 - **Task detail editing**: Click any task to open a side panel with metadata fields, markdown description, questions, issues, and log entries — all editable inline.
 - **Live sync**: Polls for external file changes every 3 seconds, so edits made in a text editor or via git are reflected automatically.
@@ -35,13 +35,19 @@ npx serve dist
 
 ![UI Mockup](docs/main.png)
 
-The app has four views, accessible via the top navigation bar:
+The app has six views, accessible via the top navigation bar:
 
 ### Timeline
-A React Flow canvas showing tasks as nodes positioned on a vertical date axis. Each node is colored by its group, shows the task title, resolved deadline, assignee initials, and indicators for unresolved issues (red dot) and unanswered questions (orange "?"). Dependency arrows connect tasks. A left filter panel and right detail panel can be opened/closed.
+A React Flow canvas showing tasks as nodes positioned on a vertical date axis. Each node is colored by its group, shows the task title, resolved deadline, assignee initials, and indicators for unresolved issues (red dot) and unanswered questions (orange "?"). Dependency arrows connect tasks. A left filter panel and right detail panel can be opened/closed. Groups are ordered horizontally by dependency connectivity (connected groups are placed adjacent), and tasks within the same group automatically spread into sub-lanes when they share similar deadlines, preventing overlap while keeping related dependency chains vertically aligned.
 
-### Table
-A sortable table of all tasks. Click column headers to sort. Columns: group (color dot), title, deadline, assignee, helpers (assigned/needed), status (badge), issue and question indicators. Click a row to open the task detail panel.
+### Tasks
+A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee, helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. Click a row to open the task detail panel.
+
+### Issues
+A flat sortable table of all issues across all tasks. Each row represents one issue, with columns: name, task (parent), group, deadline, task assignee, issue assignee, status (resolved/unresolved), and task description. The filter panel can filter by issue status (resolved/unresolved/both), issue assignee, task assignee, task group, and task deadline proximity. Clicking a row opens the issue detail panel (not the full task). From the issue detail panel, clicking the task name opens the full task detail in-place with a back button to return.
+
+### Questions
+A flat sortable table of all questions across all tasks. Each row represents one question, with columns: name, task (parent), group, deadline, task assignee, status (answered/unanswered), answer (truncated), and task description. The filter panel can filter by question status (answered/unanswered/both), task assignee, task group, and task deadline proximity. Clicking a row opens the question detail panel (not the full task). From the question detail panel, clicking the task name opens the full task detail in-place with a back button to return.
 
 ### Helpers
 Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, email, phone, and address.
@@ -60,7 +66,7 @@ The left filter panel (toggle via the filter icon) provides:
 - **Groups**: checkboxes with color circle + group path (via `GroupBadge`)
 - **Helpers**: checkboxes with name badges
 
-Filters apply to both the Timeline and Table views.
+Filters apply to both the Timeline and Tasks table views. The Issues and Questions views have their own dedicated filter panels (see above).
 
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:
