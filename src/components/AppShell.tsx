@@ -15,7 +15,7 @@ type ActiveView = "timeline" | "table" | "helpers" | "entities";
 
 const NAV_ITEMS: { key: ActiveView; label: string }[] = [
   { key: "timeline", label: "Timeline" },
-  { key: "table", label: "Table" },
+  { key: "table", label: "Tasks" },
   { key: "helpers", label: "Helpers" },
   { key: "entities", label: "Entities" },
 ];

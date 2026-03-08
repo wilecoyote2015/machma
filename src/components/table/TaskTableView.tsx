@@ -22,8 +22,8 @@ type SortKey = "title" | "deadline" | "assignee" | "helpers" | "status" | "group
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
+  { key: "title", label: "Title", className: "w-48" },
   { key: "group", label: "Group", className: "w-36" },
-  { key: "title", label: "Title" },
   { key: "deadline", label: "Deadline", className: "w-28" },
   { key: "assignee", label: "Assignee", className: "w-24" },
   { key: "helpers", label: "Helpers", className: "w-20" },
@@ -93,7 +93,7 @@ export function TaskTableView() {
       detailPanel={selectedTask ? <TaskDetail task={selectedTask} /> : null}
     >
       <div className="h-full overflow-auto p-4">
-        <table className="w-full border-collapse text-left text-sm">
+        <table className="w-full table-fixed border-collapse text-left text-sm">
           <thead>
             <tr className="border-b-2 border-gray-200">
               {COLUMNS.map((col) => (
@@ -108,8 +108,9 @@ export function TaskTableView() {
                   )}
                 </th>
               ))}
-              <th className="w-6 px-1 py-2"><IssueIndicator /></th>
-              <th className="w-6 px-1 py-2"><QuestionIndicator /></th>
+              <th className="w-16 px-1 py-2 font-semibold text-gray-600">Issues</th>
+              <th className="w-20 px-1 py-2 font-semibold text-gray-600">Questions</th>
+              <th className="px-2 py-2 font-semibold text-gray-600">Description</th>
             </tr>
           </thead>
           <tbody>
@@ -128,10 +129,10 @@ export function TaskTableView() {
                     isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"
                   }`}
                 >
+                  <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
                   <td className="px-2 py-2">
                     <GroupBadge groupPath={task.group} color={groupColor} className="text-gray-600 text-xs" />
                   </td>
-                  <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
                   <td className="px-2 py-2 text-gray-600">
                     {resolved ? formatDate(resolved) : task.deadline || "—"}
                   </td>
@@ -144,6 +145,9 @@ export function TaskTableView() {
                   <td className="px-2 py-2"><StatusBadge status={task.status} /></td>
                   <td className="px-1 py-2 text-center">{hasIssues && <IssueIndicator />}</td>
                   <td className="px-1 py-2 text-center">{hasQuestions && <QuestionIndicator />}</td>
+                  <td className="max-w-0 truncate px-2 py-2 text-gray-500">
+                    {task.description || "—"}
+                  </td>
                 </tr>
               );
             })}
