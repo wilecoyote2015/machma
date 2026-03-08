@@ -76,6 +76,28 @@ export function TimelineView() {
     setEdges((eds) => applyEdgeChanges(changes, eds));
   }, []);
 
+  // ── Selection emphasis ─────────────────────────────────────────────
+  // Edges touching the selected node become thicker and solid (not dashed)
+  // so the user immediately sees the selected task's dependency context.
+  const displayEdges = useMemo(() => {
+    if (!selectedTaskId) return edges;
+    return edges.map((edge) => {
+      if (!edge.id.includes("->")) return edge;
+      const connected =
+        edge.source === selectedTaskId || edge.target === selectedTaskId;
+      if (!connected) return edge;
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          strokeWidth: 4,
+          strokeDasharray: undefined,
+        },
+        zIndex: 1,
+      };
+    });
+  }, [edges, selectedTaskId]);
+
   // ── Connection creation ────────────────────────────────────────────
   // Dragging from source (bottom handle) → target (top handle) means
   // "target task depends on source task".
@@ -163,7 +185,7 @@ export function TimelineView() {
       <div className="h-full w-full">
         <ReactFlow
           nodes={nodesWithSelection}
-          edges={edges}
+          edges={displayEdges}
           nodeTypes={nodeTypes}
           onNodeClick={onNodeClick}
           onEdgesChange={onEdgesChange}

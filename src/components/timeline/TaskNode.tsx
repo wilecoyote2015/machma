@@ -7,7 +7,7 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { TaskNodeData } from "./layout";
+import { NODE_WIDTH, type TaskNodeData } from "./layout";
 import { formatDate } from "@/lib/dates";
 import { statusBorderClass } from "@/components/ui/StatusBadge";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
@@ -39,11 +39,11 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
       className={`relative rounded-md border-2 shadow-md transition-shadow ${borderClass} ${
         selected ? "ring-2 ring-primary ring-offset-1" : ""
       }`}
-      style={{ backgroundColor: groupColor, minWidth: 160, padding: "8px 10px" }}
+      style={{ backgroundColor: groupColor, width: NODE_WIDTH, padding: "8px 10px" }}
     >
       <Handle type="target" position={Position.Top} className={HANDLE_CLASS} />
 
-      <div className="text-sm font-semibold leading-tight text-white drop-shadow-sm">
+      <div className="truncate text-sm font-semibold leading-tight text-white drop-shadow-sm">
         {task.title}
       </div>
       <div className="mt-0.5 text-xs text-white/80">{dateStr}</div>

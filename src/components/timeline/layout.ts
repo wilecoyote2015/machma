@@ -41,8 +41,8 @@ export interface TimelineTickData extends Record<string, unknown> {
 
 /* ── Layout constants ────────────────────────────────────────────── */
 
-/** Estimated rendered width of a task node (px). */
-const NODE_WIDTH = 180;
+/** Fixed rendered width of a task node (px). Shared with TaskNode.tsx. */
+export const NODE_WIDTH = 180;
 /** Estimated rendered height for overlap detection (px). */
 const NODE_HEIGHT = 80;
 /** Horizontal gap between adjacent nodes on the X grid (px). */
