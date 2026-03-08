@@ -1,5 +1,6 @@
 ---
 alwaysApply: true
 ---
+Always consult @README.md in project root before you start a task.
 
 Always update @README.md according to your changes. README.md shall enable you as well as a new user to understand what machma is for, how it is used and what design / interaction / functionality concepts it follows.

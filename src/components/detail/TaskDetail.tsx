@@ -5,7 +5,7 @@
  * Metadata, Helpers, Relations, Description, Questions, Issues, Log.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { Task, TaskStatus } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
@@ -14,6 +14,7 @@ import { QuestionItem } from "@/components/detail/QuestionItem";
 import { IssueItem } from "@/components/detail/IssueItem";
 import { LogItem } from "@/components/detail/LogItem";
 import { MarkdownBlock } from "@/components/common/MarkdownBlock";
+import { CreateGroupDialog } from "@/components/common/CreateGroupDialog";
 import { resolveDeadline, formatDateTime } from "@/lib/dates";
 
 const STATUS_OPTIONS: TaskStatus[] = ["todo", "in_progress", "finished", "cancelled"];
@@ -22,11 +23,16 @@ interface TaskDetailProps {
   task: Task;
 }
 
+/** Sentinel value used as the "New group..." option in the group dropdown */
+const NEW_GROUP_SENTINEL = "__new_group__";
+
 export function TaskDetail({ task }: TaskDetailProps) {
   const project = useProjectStore((s) => s.project)!;
   const updateTask = useProjectStore((s) => s.updateTask);
   const deleteTask = useProjectStore((s) => s.deleteTask);
   const selectTask = useProjectStore((s) => s.selectTask);
+
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const updateField = useCallback(
     <K extends keyof Task>(field: K, value: Task[K]) => {
@@ -91,7 +97,22 @@ export function TaskDetail({ task }: TaskDetailProps) {
           </div>
           <div className="flex items-center gap-2">
             <label className="w-20 font-semibold">Group</label>
-            <span>{task.group || "—"}</span>
+            <select
+              value={task.group}
+              onChange={(e) => {
+                if (e.target.value === NEW_GROUP_SENTINEL) {
+                  setShowCreateGroup(true);
+                  return;
+                }
+                updateField("group", e.target.value);
+              }}
+              className="select-panel flex-1"
+            >
+              <option value={NEW_GROUP_SENTINEL} className="text-black font-medium">+ New group…</option>
+              {project.groups.map((g) => (
+                <option key={g.path} value={g.path} className="text-black">{g.path}</option>
+              ))}
+            </select>
           </div>
         </div>
       </PanelSection>
@@ -211,6 +232,14 @@ export function TaskDetail({ task }: TaskDetailProps) {
           Delete task...
         </button>
       </div>
+
+      {/* ── Create Group Dialog ─────────────────────────── */}
+      {showCreateGroup && (
+        <CreateGroupDialog
+          onClose={() => setShowCreateGroup(false)}
+          onCreated={(groupPath) => updateField("group", groupPath)}
+        />
+      )}
     </div>
   );
 }

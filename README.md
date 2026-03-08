@@ -57,14 +57,14 @@ The left filter panel (toggle via the filter icon) provides:
 - **Flags**: checkboxes for "has unresolved issues" and "has unanswered questions"
 - **Status**: toggle chips (todo, in progress, finished, cancelled)
 - **Tags**: toggle chips for all tags found across tasks
-- **Groups**: checkboxes with color indicators
+- **Groups**: checkboxes with color circle + group path (via `GroupBadge`)
 - **Helpers**: checkboxes with name badges
 
 Filters apply to both the Timeline and Table views.
 
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:
-- **Metadata**: deadline, status, assignee, group
+- **Metadata**: deadline, status, assignee, group (dropdown selector — changing group moves the file on disk)
 - **Helpers**: required count + assigned helper chips with add/remove
 - **Relations**: dependencies, tags, external entities (collapsed by default)
 - **Description**: rendered markdown with click-to-edit
@@ -79,6 +79,14 @@ All markdown sections support a view/edit toggle: click to edit in a textarea, s
 - **"Delete task..."** button at the bottom of the detail panel (with confirmation)
 
 Both operations create/remove the corresponding `.md` file on disk.
+
+### Creating Groups
+All group dropdown selectors (in the task detail panel and the "New Task" dialog) include a **"+ New group…"** option as the first entry. Selecting it opens a dialog where you can:
+- Enter a group name
+- Optionally select a parent group (for nested groups like `pferd/feeding`)
+- Pick a display color from a preset palette or a custom color picker
+
+The new group directory and `group.json` are created on disk immediately.
 
 ## Data Structure
 

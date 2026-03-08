@@ -5,8 +5,8 @@
  */
 
 import { create } from "zustand";
-import type { Project, Task, FilterState, TaskStatus } from "@/types";
-import { openProjectDirectory, writeTextFile, writeJsonFile } from "@/lib/fs";
+import type { Project, Task, TaskGroup, GroupMeta, FilterState, TaskStatus } from "@/types";
+import { openProjectDirectory, writeTextFile, writeJsonFile, ensureDirectory } from "@/lib/fs";
 import { loadProject } from "@/lib/project-loader";
 import { serializeTask } from "@/lib/serializer";
 
@@ -28,6 +28,7 @@ interface ProjectStore {
   updateTask: (task: Task) => Promise<void>;
   addTask: (group: string, id: string) => Promise<void>;
   deleteTask: (task: Task) => Promise<void>;
+  createGroup: (path: string, meta: GroupMeta) => Promise<void>;
 
   // ── Filter actions ───────────────────────────────────────
   toggleTagFilter: (tag: string) => void;
@@ -83,12 +84,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { dirHandle, project } = get();
     if (!dirHandle || !project) return;
 
+    const oldTask = project.tasks.find((t) => t.id === updatedTask.id);
+    const groupChanged = oldTask && oldTask.group !== updatedTask.group;
+
     const tasks = project.tasks.map((t) =>
       t.id === updatedTask.id ? updatedTask : t,
     );
     set({ project: { ...project, tasks } });
 
     try {
+      // If group changed, delete the old file first
+      if (groupChanged) {
+        const tasksDir = await dirHandle.getDirectoryHandle("tasks");
+        const oldParts = oldTask.group.split("/");
+        let oldGroupDir: FileSystemDirectoryHandle = tasksDir;
+        for (const part of oldParts) {
+          oldGroupDir = await oldGroupDir.getDirectoryHandle(part);
+        }
+        await oldGroupDir.removeEntry(`${updatedTask.id}.md`);
+      }
+
       const filePath = `tasks/${updatedTask.group}/${updatedTask.id}.md`;
       await writeTextFile(dirHandle, filePath, serializeTask(updatedTask));
     } catch (e) {
@@ -146,6 +161,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       await groupDir.removeEntry(`${task.id}.md`);
     } catch (e) {
       console.error("[store] Failed to delete task file:", e);
+    }
+  },
+
+  createGroup: async (path, meta) => {
+    const { dirHandle, project } = get();
+    if (!dirHandle || !project) return;
+
+    const name = path.split("/").pop()!;
+    const newGroup: TaskGroup = { path, name, meta };
+
+    set({ project: { ...project, groups: [...project.groups, newGroup] } });
+
+    try {
+      // Create the directory tree under tasks/
+      const groupDir = await ensureDirectory(dirHandle, `tasks/${path}`);
+      // Write group.json with color and description
+      const fileHandle = await groupDir.getFileHandle("group.json", { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(meta, null, 4) + "\n");
+      await writable.close();
+    } catch (e) {
+      console.error("[store] Failed to create group directory:", e);
     }
   },
 

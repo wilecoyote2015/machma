@@ -12,6 +12,7 @@ import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
+import { GroupBadge } from "@/components/ui/GroupBadge";
 
 const DEADLINE_OPTIONS: { label: string; value: number | null }[] = [
   { label: "All", value: null },
@@ -121,8 +122,7 @@ export function FilterPanel() {
                 onChange={() => toggleGroup(group.path)}
                 className="accent-white"
               />
-              <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: group.meta.color }} />
-              {group.name}
+              <GroupBadge groupPath={group.path} color={group.meta.color} />
             </label>
           ))}
         </div>

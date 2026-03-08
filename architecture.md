@@ -69,7 +69,8 @@ src/
 │   │   ├── MarkdownBlock.tsx         # View/edit toggle: react-markdown ↔ textarea
 │   │   ├── EditableRecordTable.tsx   # Generic inline-editable keyed table (used by Helpers/Entities)
 │   │   ├── ProjectPicker.tsx         # Landing screen ("Open Project Folder" button)
-│   │   ├── AddTaskDialog.tsx         # Modal: create new task (group + ID)
+│   │   ├── AddTaskDialog.tsx         # Modal: create new task (group + ID, with "New group…" option)
+│   │   ├── CreateGroupDialog.tsx     # Modal: create new group (name, parent, color)
 │   │   ├── HelpersView.tsx           # Thin wrapper around EditableRecordTable for helpers.json
 │   │   └── EntitiesView.tsx          # Thin wrapper around EditableRecordTable for external_entities.json
 │   │
@@ -78,6 +79,7 @@ src/
 │   │   ├── QuestionIndicator.tsx     # Orange "?" circle (unanswered questions)
 │   │   ├── StatusBadge.tsx           # Colored status badge + border class helper
 │   │   ├── AssigneeBadge.tsx         # Green assignee chip (dark/light variants)
+│   │   ├── GroupBadge.tsx            # Color circle + group path label (used in table, filters, detail)
 │   │   └── FilterToggleGroup.tsx     # Toggle button group for filter chips
 │   │
 │   ├── filters/
@@ -135,7 +137,7 @@ All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (pr
 
 ### Shared UI Primitives
 
-`IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each.
+`IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, `GroupBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each. `GroupBadge` renders a colored circle indicator alongside the group path string (e.g. "pferd/feeding") and is used consistently in the task table, filter panel, and anywhere groups are displayed.
 
 ### External Change Detection
 
@@ -149,7 +151,15 @@ A single Zustand store (`project-store.ts`) holds:
 - `selectedTaskId`: currently selected task
 - `activeView`: which tab is shown (timeline, table, helpers, entities)
 - `filters`: all filter state (tags, groups, helpers, statuses, flags, deadline proximity)
-- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, filter toggles, `saveHelpers`, `saveExternalEntities`
+- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles, `saveHelpers`, `saveExternalEntities`
+
+### Group Management
+
+Groups correspond to subdirectories under `tasks/`. Each group has an optional `group.json` for color and description. Groups can be nested (e.g. `pferd/feeding`).
+
+- **Editing**: The group field in TaskDetail is a dropdown selector. Changing group moves the task file to the new group directory (old file deleted, new file written).
+- **Creation**: A "New group…" option in group dropdowns (TaskDetail, AddTaskDialog) opens `CreateGroupDialog`, which creates the directory and `group.json`. The user picks a name, optional parent group, and display color.
+- **Rendering**: `GroupBadge` is the DRY component for displaying groups everywhere — a colored circle plus the full group path.
 
 ## Running
 

@@ -14,6 +14,7 @@ import { FilterPanel } from "@/components/filters/FilterPanel";
 import { TaskDetail } from "@/components/detail/TaskDetail";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
+import { GroupBadge } from "@/components/ui/GroupBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 
@@ -21,7 +22,7 @@ type SortKey = "title" | "deadline" | "assignee" | "helpers" | "status" | "group
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
-  { key: "group", label: "Group", className: "w-8" },
+  { key: "group", label: "Group", className: "w-36" },
   { key: "title", label: "Title" },
   { key: "deadline", label: "Deadline", className: "w-28" },
   { key: "assignee", label: "Assignee", className: "w-24" },
@@ -128,11 +129,7 @@ export function TaskTableView() {
                   }`}
                 >
                   <td className="px-2 py-2">
-                    <span
-                      className="inline-block h-3 w-3 rounded-sm"
-                      style={{ backgroundColor: groupColor }}
-                      title={task.group}
-                    />
+                    <GroupBadge groupPath={task.group} color={groupColor} className="text-gray-600 text-xs" />
                   </td>
                   <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
                   <td className="px-2 py-2 text-gray-600">

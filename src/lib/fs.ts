@@ -104,6 +104,22 @@ export async function getFileTimestamp(
 }
 
 /**
+ * Ensure a nested directory path exists, creating any missing segments.
+ * E.g. ensureDirectory(root, "tasks/pferd/sub") creates tasks, pferd, sub as needed.
+ * Returns the handle to the deepest directory.
+ */
+export async function ensureDirectory(
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<FileSystemDirectoryHandle> {
+  let handle = root;
+  for (const segment of path.split("/").filter(Boolean)) {
+    handle = await handle.getDirectoryHandle(segment, { create: true });
+  }
+  return handle;
+}
+
+/**
  * Recursively list all entries in a directory, returning
  * { files: string[], dirs: string[] } with paths relative to root.
  */
