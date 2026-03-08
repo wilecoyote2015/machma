@@ -52,7 +52,7 @@ export function MarkdownBlock({ content, onSave, placeholder = "No content" }: M
   return (
     <div
       onClick={handleEdit}
-      className="cursor-pointer rounded border border-transparent p-2 hover:border-gray-200 hover:bg-gray-50"
+      className="cursor-pointer rounded border border-transparent p-0 hover:border-gray-200 hover:bg-gray-50"
       title="Click to edit"
     >
       {content.trim() ? (
