@@ -21,6 +21,7 @@ import { MarkerType, type Node, type Edge } from "@xyflow/react";
 import type { Task, TaskGroup } from "@/types";
 import { resolveDeadline, formatDate } from "@/lib/dates";
 import { DEFAULT_GROUP_COLOR, AXIS_COLOR, EDGE_COLOR } from "@/lib/constants";
+import { getInitials } from "@/lib/format";
 
 /** Data payload attached to each task node */
 export interface TaskNodeData extends Record<string, unknown> {
@@ -569,13 +570,7 @@ function buildTaskNodeData(
   );
 
   const helper = task.assignee ? helpers[task.assignee] : undefined;
-  const assigneeName = helper
-    ? helper.name
-        .split(" ")
-        .map((w) => w[0])
-        .join(".")
-        .toUpperCase()
-    : task.assignee;
+  const assigneeName = helper ? getInitials(helper.name) : task.assignee;
 
   return {
     task,

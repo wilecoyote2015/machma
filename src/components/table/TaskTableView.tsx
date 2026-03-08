@@ -8,13 +8,13 @@ import type { Task } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
 import { resolveDeadline, formatDate } from "@/lib/dates";
+import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
 import { SortableTable, type Column } from "@/components/common/SortableTable";
 import { FilterPanel } from "@/components/filters/FilterPanel";
 import { TaskDetail } from "@/components/detail/TaskDetail";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
@@ -33,6 +33,9 @@ export function TaskTableView() {
   const filters = useProjectStore((s) => s.filters);
   const selectedTaskId = useProjectStore((s) => s.selectedTaskId);
   const selectTask = useProjectStore((s) => s.selectTask);
+  const updateTask = useProjectStore((s) => s.updateTask);
+
+  const helperMap = project.helpers;
 
   const anchorDate = project.meta.anchor_date;
 
@@ -84,10 +87,30 @@ export function TaskTableView() {
       {
         key: "assignee",
         label: "Assignee",
-        thClassName: "w-24",
-        compare: (a, b) => a.task.assignee.localeCompare(b.task.assignee),
-        render: (r) =>
-          r.task.assignee ? <AssigneeBadge label={r.task.assignee} variant="light" /> : "—",
+        thClassName: "w-28",
+        compare: (a, b) => {
+          const nameA = helperMap[a.task.assignee]?.name ?? a.task.assignee;
+          const nameB = helperMap[b.task.assignee]?.name ?? b.task.assignee;
+          return nameA.localeCompare(nameB);
+        },
+        render: (r) => (
+          <select
+            value={r.task.assignee}
+            onChange={(e) => {
+              e.stopPropagation();
+              updateTask({ ...r.task, assignee: e.target.value });
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="input-light w-full text-xs"
+          >
+            <option value="">—</option>
+            {Object.entries(helperMap).map(([id, helper]) => (
+              <option key={id} value={id}>
+                {getInitials(helper.name)}
+              </option>
+            ))}
+          </select>
+        ),
       },
       {
         key: "helpers",
@@ -125,7 +148,7 @@ export function TaskTableView() {
         render: (r) => r.task.description || "—",
       },
     ],
-    [],
+    [helperMap, updateTask],
   );
 
   const selectedTask = selectedTaskId

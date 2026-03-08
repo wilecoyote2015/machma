@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import type { Task, TaskIssue } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { resolveDeadline, formatDate } from "@/lib/dates";
+import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
 import { SortableTable, type Column } from "@/components/common/SortableTable";
@@ -32,6 +33,10 @@ interface FlatIssue {
   resolved: boolean;
   resolvedDeadline: Date | null;
   groupColor: string;
+  /** Pre-resolved task assignee display label (initials or raw ID fallback) */
+  taskAssigneeLabel: string;
+  /** Pre-resolved issue assignee display label (initials or raw ID fallback) */
+  issueAssigneeLabel: string;
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -72,6 +77,9 @@ export function IssueTableView() {
           if ((resolvedDeadline.getTime() - now) / MS_PER_DAY > filters.deadlineWithinDays) continue;
         }
 
+        const taskHelper = project.helpers[task.assignee];
+        const issueHelper = issue.assignee ? project.helpers[issue.assignee] : undefined;
+
         flat.push({
           taskId: task.id,
           issueIndex: i,
@@ -80,6 +88,8 @@ export function IssueTableView() {
           resolved,
           resolvedDeadline,
           groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
+          taskAssigneeLabel: taskHelper ? getInitials(taskHelper.name) : task.assignee,
+          issueAssigneeLabel: issueHelper ? getInitials(issueHelper.name) : issue.assignee,
         });
       }
     }
@@ -128,17 +138,17 @@ export function IssueTableView() {
         key: "taskAssignee",
         label: "Task Assignee",
         thClassName: "w-28",
-        compare: (a, b) => a.task.assignee.localeCompare(b.task.assignee),
+        compare: (a, b) => a.taskAssigneeLabel.localeCompare(b.taskAssigneeLabel),
         render: (r) =>
-          r.task.assignee ? <AssigneeBadge label={r.task.assignee} variant="light" /> : "—",
+          r.taskAssigneeLabel ? <AssigneeBadge label={r.taskAssigneeLabel} variant="light" /> : "—",
       },
       {
         key: "issueAssignee",
         label: "Issue Assignee",
         thClassName: "w-28",
-        compare: (a, b) => a.issue.assignee.localeCompare(b.issue.assignee),
+        compare: (a, b) => a.issueAssigneeLabel.localeCompare(b.issueAssigneeLabel),
         render: (r) =>
-          r.issue.assignee ? <AssigneeBadge label={r.issue.assignee} variant="light" /> : "—",
+          r.issueAssigneeLabel ? <AssigneeBadge label={r.issueAssigneeLabel} variant="light" /> : "—",
       },
       {
         key: "status",

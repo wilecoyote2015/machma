@@ -34,6 +34,7 @@ interface ProjectStore {
   toggleTagFilter: (tag: string) => void;
   toggleGroupFilter: (group: string) => void;
   toggleHelperFilter: (helperId: string) => void;
+  toggleAssigneeFilter: (helperId: string) => void;
   toggleStatusFilter: (status: TaskStatus) => void;
   setHasUnresolvedIssues: (value: boolean) => void;
   setHasUnansweredQuestions: (value: boolean) => void;
@@ -48,6 +49,7 @@ const emptyFilters = (): FilterState => ({
   tags: new Set(),
   groups: new Set(),
   helpers: new Set(),
+  assignees: new Set(),
   statuses: new Set(),
   hasUnresolvedIssues: false,
   hasUnansweredQuestions: false,
@@ -208,6 +210,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (helpers.has(helperId)) helpers.delete(helperId);
       else helpers.add(helperId);
       return { filters: { ...s.filters, helpers } };
+    }),
+
+  toggleAssigneeFilter: (helperId) =>
+    set((s) => {
+      const assignees = new Set(s.filters.assignees);
+      if (assignees.has(helperId)) assignees.delete(helperId);
+      else assignees.add(helperId);
+      return { filters: { ...s.filters, assignees } };
     }),
 
   toggleStatusFilter: (status) =>

@@ -19,6 +19,7 @@ import { GroupBadge } from "@/components/ui/GroupBadge";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
 import { TaskDetail } from "@/components/detail/TaskDetail";
 import { resolveDeadline, formatDate } from "@/lib/dates";
+import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
 
 interface ItemDetailShellProps {
@@ -99,9 +100,11 @@ export function ItemDetailShell({
           </div>
           <div className="flex items-center gap-2">
             <span className="w-16 text-white/70">Assignee</span>
-            {task.assignee ? (
-              <AssigneeBadge label={task.assignee} variant="dark" />
-            ) : (
+            {task.assignee ? (() => {
+              const h = project.helpers[task.assignee];
+              const label = h ? `${h.name} (${getInitials(h.name)})` : task.assignee;
+              return <AssigneeBadge label={label} variant="dark" />;
+            })() : (
               <span>—</span>
             )}
           </div>

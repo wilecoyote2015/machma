@@ -16,6 +16,7 @@ import { LogItem } from "@/components/detail/LogItem";
 import { MarkdownBlock } from "@/components/common/MarkdownBlock";
 import { CreateGroupDialog } from "@/components/common/CreateGroupDialog";
 import { resolveDeadline, formatDateTime } from "@/lib/dates";
+import { getInitials } from "@/lib/format";
 
 const STATUS_OPTIONS: TaskStatus[] = ["todo", "in_progress", "finished", "cancelled"];
 
@@ -90,9 +91,14 @@ export function TaskDetail({ task }: TaskDetailProps) {
               className="select-panel flex-1"
             >
               <option value="" className="text-black">—</option>
-              {helperIds.map((id) => (
-                <option key={id} value={id} className="text-black">{id} ({project.helpers[id]!.name})</option>
-              ))}
+              {helperIds.map((id) => {
+                const name = project.helpers[id]!.name;
+                return (
+                  <option key={id} value={id} className="text-black">
+                    {name} ({getInitials(name)})
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="flex items-center gap-2">

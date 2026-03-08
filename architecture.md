@@ -48,6 +48,7 @@ src/
 │
 ├── lib/
 │   ├── constants.ts                  # Shared constants (DEFAULT_GROUP_COLOR, AXIS_COLOR)
+│   ├── format.ts                     # Person display formatting (getInitials)
 │   ├── fs.ts                         # File System Access API wrapper (open, read, write, list)
 │   ├── parser.ts                     # State-machine MD parser (.md → Task object)
 │   ├── serializer.ts                 # Inverse of parser (Task object → .md string)
@@ -169,6 +170,8 @@ All filter panels compose from shared building blocks in **`FilterSections.tsx`*
 
 Each filter panel (tasks, issues, questions) composes these shared sections with its own view-specific sections (e.g. task status, tags, issue/question status).
 
+The main task/timeline filter panel has **separate** "Assignee" and "Helpers" filter sections: the assignee filter matches the task's primary assignee, while the helpers filter matches people in the task's helpers list. Both are independent conjunctive filters.
+
 The issue and question detail panels share **`ItemDetailShell`**, which provides:
 - Header with title, optional subtitle elements (status badges), and close button
 - Parent task info section with clickable task name, group, deadline, and assignee
@@ -200,6 +203,21 @@ ViewLayout handles responsive breakpoints:
 
 All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (primary, issue, question, success, panel, etc.). Reusable CSS classes (`.btn-primary`, `.btn-secondary`, `.input-light`, `.input-panel`, `.select-panel`) are defined with `@apply`. Hex constants for non-CSS contexts (React Flow node data, inline styles) live in `lib/constants.ts`, including `EDGE_COLOR` — a status-keyed map of dependency edge colors.
 
+### Assignee Display Convention
+
+Assignee/helper person representation follows a unified convention across the app:
+
+- **Tables** (Tasks, Issues, Questions) and **Timeline nodes**: show **initials** derived from the person's full name (e.g. "B.S" for "Björn Schmidt") via `getInitials()` in `lib/format.ts`.
+- **Detail panels** (TaskDetail, ItemDetailShell): show **"Name (Initials)"** (e.g. "Björn Schmidt (B.S)") for full clarity.
+- **Helper List view**: the only place that shows the raw **helper ID** alongside the resolved name.
+- **Filter panels**: show full names for checkbox labels.
+
+The raw helper ID is never displayed to users outside the Helper List view. Internally, all data still stores helper IDs; the display format is resolved at render time.
+
+### Inline Table Editing
+
+The Tasks table view provides direct inline editing for the **assignee** field. The assignee column renders a native `<select>` dropdown (with click propagation stopped to avoid triggering row selection). Options show initials; the selected value persists immediately via `updateTask`. This allows quick assignee changes without opening the detail panel.
+
 ### Shared UI Primitives
 
 `IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, `GroupBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each. `GroupBadge` renders a colored circle indicator alongside the group path string (e.g. "pferd/feeding") and is used consistently in the task table, filter panel, and anywhere groups are displayed.
@@ -215,8 +233,8 @@ A single Zustand store (`project-store.ts`) holds:
 - `project`: the full parsed Project model (tasks, groups, helpers, entities)
 - `selectedTaskId`: currently selected task
 - `activeView`: which tab is shown (timeline, table, issues, questions, helperlist, helpers, entities)
-- `filters`: all filter state (tags, groups, helpers, statuses, flags, deadline proximity)
-- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles, `saveHelpers`, `saveExternalEntities`
+- `filters`: all filter state (tags, groups, helpers, assignees, statuses, flags, deadline proximity)
+- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles (including separate `toggleAssigneeFilter` and `toggleHelperFilter`), `saveHelpers`, `saveExternalEntities`
 
 ### Group Management
 

@@ -32,6 +32,7 @@ export function FilterPanel() {
   const toggleTag = useProjectStore((s) => s.toggleTagFilter);
   const toggleGroup = useProjectStore((s) => s.toggleGroupFilter);
   const toggleHelper = useProjectStore((s) => s.toggleHelperFilter);
+  const toggleAssignee = useProjectStore((s) => s.toggleAssigneeFilter);
   const toggleStatus = useProjectStore((s) => s.toggleStatusFilter);
   const setHasUnresolvedIssues = useProjectStore((s) => s.setHasUnresolvedIssues);
   const setHasUnansweredQuestions = useProjectStore((s) => s.setHasUnansweredQuestions);
@@ -50,6 +51,7 @@ export function FilterPanel() {
     filters.tags.size > 0 ||
     filters.groups.size > 0 ||
     filters.helpers.size > 0 ||
+    filters.assignees.size > 0 ||
     filters.statuses.size > 0 ||
     filters.hasUnresolvedIssues ||
     filters.hasUnansweredQuestions ||
@@ -98,6 +100,12 @@ export function FilterPanel() {
       <GroupFilterSection
         selected={filters.groups}
         onToggle={toggleGroup}
+      />
+
+      <AssigneeFilterSection
+        title="Assignee"
+        selected={filters.assignees}
+        onToggle={toggleAssignee}
       />
 
       <AssigneeFilterSection

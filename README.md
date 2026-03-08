@@ -43,7 +43,7 @@ A React Flow canvas showing tasks as nodes positioned on a vertical date axis. E
 **Interactive dependency editing**: Drag from a node's bottom handle to another node's top handle to create a dependency. Select a dependency edge and press Delete/Backspace to remove it. Connection validation prevents self-references and duplicates.
 
 ### Tasks
-A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee, helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. Click a row to open the task detail panel.
+A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee (inline editable dropdown showing initials), helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. The assignee column is directly editable — click the dropdown to change the assignee without opening the detail panel. Click a row to open the task detail panel.
 
 ### Issues
 A flat sortable table of all issues across all tasks. Each row represents one issue, with columns: name, task (parent), group, deadline, task assignee, issue assignee, status (resolved/unresolved), and task description. The filter panel can filter by issue status (resolved/unresolved/both), issue assignee, task assignee, task group, and task deadline proximity. Clicking a row opens the issue detail panel (not the full task). From the issue detail panel, clicking the task name opens the full task detail in-place with a back button to return.
@@ -69,9 +69,10 @@ The left filter panel (toggle via the filter icon) provides:
 - **Status**: toggle chips (todo, in progress, finished, cancelled)
 - **Tags**: toggle chips for all tags found across tasks
 - **Groups**: checkboxes with color circle + group path (via `GroupBadge`)
-- **Helpers**: checkboxes with name badges
+- **Assignee**: checkboxes to filter by who is the primary assignee of a task
+- **Helpers**: checkboxes to filter by who is in a task's helpers list
 
-Filters apply to both the Timeline and Tasks table views. The Issues and Questions views have their own dedicated filter panels (see above).
+Assignee and Helpers are independent filters — Assignee matches the task's primary assignee, while Helpers matches people in the task's helpers list. Filters apply to both the Timeline and Tasks table views. The Issues and Questions views have their own dedicated filter panels (see above).
 
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:

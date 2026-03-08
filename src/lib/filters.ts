@@ -25,10 +25,12 @@ export function applyFilters(
     if (filters.groups.size > 0 && !filters.groups.has(task.group))
       return false;
 
+    if (filters.assignees.size > 0 && !filters.assignees.has(task.assignee))
+      return false;
+
     if (
       filters.helpers.size > 0 &&
-      !task.helpers.some((h) => filters.helpers.has(h)) &&
-      !filters.helpers.has(task.assignee)
+      !task.helpers.some((h) => filters.helpers.has(h))
     )
       return false;
 

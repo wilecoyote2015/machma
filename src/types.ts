@@ -148,8 +148,10 @@ export interface FilterState {
   tags: Set<string>;
   /** Only show tasks in these group paths (empty = show all) */
   groups: Set<string>;
-  /** Only show tasks involving these helper IDs (empty = show all) */
+  /** Only show tasks with these helper IDs in their helpers list (empty = show all) */
   helpers: Set<string>;
+  /** Only show tasks with these helper IDs as assignee (empty = show all) */
+  assignees: Set<string>;
   /** Only show tasks with these statuses (empty = show all) */
   statuses: Set<TaskStatus>;
   /** If true, only show tasks with unresolved issues */
