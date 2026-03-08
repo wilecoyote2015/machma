@@ -1,19 +1,22 @@
 /**
  * Left sidebar filter panel for the Issues table view.
  *
- * Filters:
- * - Issue status: all / resolved / unresolved
- * - Issue assignee: checkbox list of helpers
- * - Task assignee: checkbox list of helpers
- * - Task group: checkbox list of groups
- * - Task deadline: proximity quick-select buttons
+ * Uses shared filter sections for deadline, groups, and assignees.
+ * Issue-specific: status toggle (all/resolved/unresolved) and
+ * separate issue-assignee vs task-assignee sections.
  */
 
-import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
 import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
-import { GroupBadge } from "@/components/ui/GroupBadge";
+import {
+  FilterPanelShell,
+  DeadlineFilterSection,
+  GroupFilterSection,
+  AssigneeFilterSection,
+  toggleSet,
+} from "@/components/filters/FilterSections";
+
+// ── Filter state types (exported for use by IssueTableView) ─────────
 
 export type IssueStatusFilter = "all" | "resolved" | "unresolved";
 
@@ -40,13 +43,7 @@ const ISSUE_STATUS_OPTIONS: { label: string; value: IssueStatusFilter }[] = [
   { label: "Resolved", value: "resolved" },
 ];
 
-const DEADLINE_OPTIONS: { label: string; value: number | null }[] = [
-  { label: "All", value: null },
-  { label: "7 days", value: 7 },
-  { label: "14 days", value: 14 },
-  { label: "30 days", value: 30 },
-  { label: "90 days", value: 90 },
-];
+// ── Component ───────────────────────────────────────────────────────
 
 interface IssueFilterPanelProps {
   filters: IssueFilterState;
@@ -54,8 +51,6 @@ interface IssueFilterPanelProps {
 }
 
 export function IssueFilterPanel({ filters, onChange }: IssueFilterPanelProps) {
-  const project = useProjectStore((s) => s.project)!;
-
   const hasActiveFilters =
     filters.issueStatus !== "all" ||
     filters.issueAssignees.size > 0 ||
@@ -63,27 +58,11 @@ export function IssueFilterPanel({ filters, onChange }: IssueFilterPanelProps) {
     filters.groups.size > 0 ||
     filters.deadlineWithinDays !== null;
 
-  /** Toggle a value in a Set, returning a new Set */
-  const toggleSet = (set: Set<string>, value: string): Set<string> => {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    return next;
-  };
-
   return (
-    <div className="space-y-1 text-white">
-      {hasActiveFilters && (
-        <div className="flex justify-end pb-1">
-          <button
-            onClick={() => onChange(emptyIssueFilters())}
-            className="text-xs text-white/70 underline hover:text-white"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
-
+    <FilterPanelShell
+      hasActiveFilters={hasActiveFilters}
+      onClearAll={() => onChange(emptyIssueFilters())}
+    >
       <PanelSection title="Issue Status">
         <FilterToggleGroup
           options={ISSUE_STATUS_OPTIONS}
@@ -92,76 +71,29 @@ export function IssueFilterPanel({ filters, onChange }: IssueFilterPanelProps) {
         />
       </PanelSection>
 
-      <PanelSection title="Issue Assignee">
-        <div className="space-y-0.5">
-          {Object.entries(project.helpers).map(([id, helper]) => (
-            <label
-              key={id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-hover"
-            >
-              <input
-                type="checkbox"
-                checked={filters.issueAssignees.size === 0 || filters.issueAssignees.has(id)}
-                onChange={() =>
-                  onChange({ ...filters, issueAssignees: toggleSet(filters.issueAssignees, id) })
-                }
-                className="accent-white"
-              />
-              <AssigneeBadge label={helper.name} variant="dark" />
-            </label>
-          ))}
-        </div>
-      </PanelSection>
+      <AssigneeFilterSection
+        title="Issue Assignee"
+        selected={filters.issueAssignees}
+        onToggle={(id) => onChange({ ...filters, issueAssignees: toggleSet(filters.issueAssignees, id) })}
+      />
 
-      <PanelSection title="Task Assignee">
-        <div className="space-y-0.5">
-          {Object.entries(project.helpers).map(([id, helper]) => (
-            <label
-              key={id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-hover"
-            >
-              <input
-                type="checkbox"
-                checked={filters.taskAssignees.size === 0 || filters.taskAssignees.has(id)}
-                onChange={() =>
-                  onChange({ ...filters, taskAssignees: toggleSet(filters.taskAssignees, id) })
-                }
-                className="accent-white"
-              />
-              <AssigneeBadge label={helper.name} variant="dark" />
-            </label>
-          ))}
-        </div>
-      </PanelSection>
+      <AssigneeFilterSection
+        title="Task Assignee"
+        selected={filters.taskAssignees}
+        onToggle={(id) => onChange({ ...filters, taskAssignees: toggleSet(filters.taskAssignees, id) })}
+      />
 
-      <PanelSection title="Task Group">
-        <div className="space-y-0.5">
-          {project.groups.map((group) => (
-            <label
-              key={group.path}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-hover"
-            >
-              <input
-                type="checkbox"
-                checked={filters.groups.size === 0 || filters.groups.has(group.path)}
-                onChange={() =>
-                  onChange({ ...filters, groups: toggleSet(filters.groups, group.path) })
-                }
-                className="accent-white"
-              />
-              <GroupBadge groupPath={group.path} color={group.meta.color} />
-            </label>
-          ))}
-        </div>
-      </PanelSection>
+      <GroupFilterSection
+        title="Task Group"
+        selected={filters.groups}
+        onToggle={(path) => onChange({ ...filters, groups: toggleSet(filters.groups, path) })}
+      />
 
-      <PanelSection title="Task Deadline">
-        <FilterToggleGroup
-          options={DEADLINE_OPTIONS}
-          selected={filters.deadlineWithinDays}
-          onToggle={(v) => onChange({ ...filters, deadlineWithinDays: v })}
-        />
-      </PanelSection>
-    </div>
+      <DeadlineFilterSection
+        title="Task Deadline"
+        value={filters.deadlineWithinDays}
+        onChange={(v) => onChange({ ...filters, deadlineWithinDays: v })}
+      />
+    </FilterPanelShell>
   );
 }

@@ -65,6 +65,7 @@ src/
 │   │
 │   ├── common/
 │   │   ├── ViewLayout.tsx            # Generic 3-panel layout (filter | content | detail)
+│   │   ├── SortableTable.tsx         # Generic sortable table: sort state, column definitions, row selection
 │   │   ├── PanelSection.tsx          # Collapsible section with indented content for sidebars
 │   │   ├── MarkdownBlock.tsx         # View/edit toggle: react-markdown ↔ textarea
 │   │   ├── EditableRecordTable.tsx   # Generic inline-editable keyed table (used by Helpers/Entities)
@@ -83,14 +84,16 @@ src/
 │   │   └── FilterToggleGroup.tsx     # Toggle button group for filter chips
 │   │
 │   ├── filters/
-│   │   ├── FilterPanel.tsx           # Left sidebar: deadline, flags, status, tags, groups, helpers
-│   │   ├── IssueFilterPanel.tsx      # Left sidebar for Issues view: issue status, assignees, groups, deadline
-│   │   └── QuestionFilterPanel.tsx   # Left sidebar for Questions view: question status, assignees, groups, deadline
+│   │   ├── FilterSections.tsx        # Shared filter building blocks: shell, deadline/group/assignee sections, toggleSet
+│   │   ├── FilterPanel.tsx           # Left sidebar for Tasks/Timeline: composes shared + task-specific sections
+│   │   ├── IssueFilterPanel.tsx      # Left sidebar for Issues: composes shared + issue-specific sections
+│   │   └── QuestionFilterPanel.tsx   # Left sidebar for Questions: composes shared + question-specific sections
 │   │
 │   ├── detail/
 │   │   ├── TaskDetail.tsx            # Right sidebar: full task editing via PanelSections
-│   │   ├── IssueDetail.tsx           # Right sidebar: single issue detail with task link
-│   │   ├── QuestionDetail.tsx        # Right sidebar: single question detail with task link
+│   │   ├── ItemDetailShell.tsx       # Shared wrapper: header, task info section, TaskDetail toggle
+│   │   ├── IssueDetail.tsx           # Issue detail panel (uses ItemDetailShell + issue-specific sections)
+│   │   ├── QuestionDetail.tsx        # Question detail panel (uses ItemDetailShell + question-specific sections)
 │   │   ├── ChipList.tsx              # Interactive add/remove chip list for arrays
 │   │   ├── QuestionItem.tsx          # Single question entry with answer editing
 │   │   ├── IssueItem.tsx             # Single issue entry with assignee + solution
@@ -103,9 +106,9 @@ src/
 │   │   └── layout.ts                 # Smart layout: date→Y mapping, group→X columns, tick generation
 │   │
 │   └── table/
-│       ├── TaskTableView.tsx         # Sortable "Tasks" table wrapped in ViewLayout
-│       ├── IssueTableView.tsx        # Flat issue table across all tasks, with local filters
-│       └── QuestionTableView.tsx     # Flat question table across all tasks, with local filters
+│       ├── TaskTableView.tsx         # Tasks table: column defs + SortableTable + ViewLayout
+│       ├── IssueTableView.tsx        # Issues table: flatten + filter + SortableTable + ViewLayout
+│       └── QuestionTableView.tsx     # Questions table: flatten + filter + SortableTable + ViewLayout
 ```
 
 ## Key Design Decisions
@@ -137,11 +140,27 @@ User-written headings inside content sections are elevated on save (e.g. `#` →
 
 The `ViewLayout` component encapsulates the three-panel pattern (filter sidebar | main content | detail sidebar). Each view (Timeline, Tasks, Issues, Questions) wraps itself in ViewLayout and passes its own filter and detail panels. This decouples panel management from AppShell.
 
+### Shared Table, Filter & Detail Components (DRY)
+
+All table views (Tasks, Issues, Questions) share a generic **`SortableTable<T>`** component that encapsulates table structure, sort state management, clickable column headers with sort indicators, row selection highlighting, and empty-state display. Each view defines its own column array with per-column render functions and optional comparators; the generic component handles all the common logic.
+
+All filter panels compose from shared building blocks in **`FilterSections.tsx`**:
+- `FilterPanelShell` — outer wrapper with "Clear all" button and consistent styling
+- `DeadlineFilterSection` — deadline proximity quick-select buttons
+- `GroupFilterSection` — group checkbox list (reads groups from the store)
+- `AssigneeFilterSection` — helper checkbox list with parameterized title
+- `toggleSet` — immutable Set toggle utility
+
+Each filter panel (tasks, issues, questions) composes these shared sections with its own view-specific sections (e.g. task status, tags, issue/question status).
+
+The issue and question detail panels share **`ItemDetailShell`**, which provides:
+- Header with title, optional subtitle elements (status badges), and close button
+- Parent task info section with clickable task name, group, deadline, and assignee
+- TaskDetail toggle: clicking the task name replaces the panel with the full `TaskDetail`, with a back button to return
+
 ### Issue & Question Table Views
 
-The Issues and Questions views flatten all issues/questions from all tasks into a single sortable table. Each row represents one issue or question, joined with its parent task's metadata (group, deadline, assignee). Filter and selection state are managed locally within each view component (not in the global store), since these filters are view-specific and not shared with other views.
-
-The detail panels (`IssueDetail`, `QuestionDetail`) show the selected item's fields with inline editing. They display a clickable parent task name that, when clicked, replaces the panel content with the full `TaskDetail` component (reused from the Tasks view), with a back button to return to the item detail. This allows navigating from an issue/question to its parent task without leaving the current view.
+The Issues and Questions views flatten all issues/questions from all tasks into a single sortable table using `SortableTable`. Each row represents one issue or question, joined with its parent task's metadata (group, deadline, assignee). Filtering is applied during the flattening step for efficiency. Filter and selection state are managed locally within each view component (not in the global store), since these filters are view-specific and not shared with other views.
 
 ### Responsive Design
 

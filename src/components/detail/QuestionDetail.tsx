@@ -1,37 +1,16 @@
 /**
  * Right sidebar panel showing the detail of a selected question.
  *
- * Displays question metadata (title, status, recurring flag, answer)
- * and a clickable parent task link. Clicking the task name replaces
- * the panel content with the full TaskDetail; a back button returns
- * to the question detail view.
+ * Uses ItemDetailShell for the shared header, task info section,
+ * and TaskDetail toggle. Only question-specific editing sections
+ * (title, recurring flag, answer) are defined here.
  */
 
-import { useState } from "react";
 import type { Task, TaskQuestion } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
 import { MarkdownBlock } from "@/components/common/MarkdownBlock";
-import { GroupBadge } from "@/components/ui/GroupBadge";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
-import { TaskDetail } from "@/components/detail/TaskDetail";
-import { resolveDeadline, formatDate } from "@/lib/dates";
-import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
-
-/** Badge for answered / unanswered question status */
-function QuestionStatusBadge({ answered }: { answered: boolean }) {
-  return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${
-        answered
-          ? "bg-success-light text-success-text"
-          : "bg-warning-light text-warning-text"
-      }`}
-    >
-      {answered ? "answered" : "unanswered"}
-    </span>
-  );
-}
+import { ItemDetailShell } from "@/components/detail/ItemDetailShell";
 
 interface QuestionDetailProps {
   /** The parent task containing this question */
@@ -43,18 +22,12 @@ interface QuestionDetailProps {
 }
 
 export function QuestionDetail({ task, questionIndex, onClose }: QuestionDetailProps) {
-  const project = useProjectStore((s) => s.project)!;
   const updateTask = useProjectStore((s) => s.updateTask);
-
-  const [showTaskDetail, setShowTaskDetail] = useState(false);
 
   const question = task.questions[questionIndex];
   if (!question) return null;
 
   const answered = !!question.answer.trim();
-  const groupColor =
-    project.groups.find((g) => g.path === task.group)?.meta.color ?? DEFAULT_GROUP_COLOR;
-  const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date);
 
   /** Persist an updated question back to the task */
   const updateQuestion = (updated: TaskQuestion) => {
@@ -63,64 +36,27 @@ export function QuestionDetail({ task, questionIndex, onClose }: QuestionDetailP
     updateTask({ ...task, questions });
   };
 
-  // Delegate to TaskDetail when the user clicked the task name
-  if (showTaskDetail) {
-    return (
-      <div className="space-y-1 text-white">
-        <button
-          onClick={() => setShowTaskDetail(false)}
-          className="mb-2 flex items-center gap-1 text-sm text-white/70 hover:text-white"
-        >
-          ← Back to question
-        </button>
-        <TaskDetail task={task} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-1 text-white">
-      {/* ── Header ───────────────────────────────────────── */}
-      <div className="flex items-start justify-between pb-2">
-        <div className="flex-1">
-          <h2 className="text-xl font-bold">{question.title}</h2>
-          <div className="mt-1 flex items-center gap-2">
-            <QuestionStatusBadge answered={answered} />
-            {question.recurring && (
-              <span className="rounded bg-white/20 px-1.5 py-0.5 text-xs">recurring</span>
-            )}
-          </div>
-        </div>
-        <button onClick={onClose} className="text-white/70 hover:text-white" title="Close">
-          ✕
-        </button>
-      </div>
-
-      {/* ── Parent task info ──────────────────────────────── */}
-      <PanelSection title="Task">
-        <div className="space-y-1.5 text-sm">
-          <button
-            onClick={() => setShowTaskDetail(true)}
-            className="text-left font-medium text-blue-300 underline hover:text-blue-200"
-            title="Open full task detail"
+    <ItemDetailShell
+      title={question.title}
+      headerExtra={
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded px-2 py-0.5 text-xs font-medium ${
+              answered ? "bg-success-light text-success-text" : "bg-warning-light text-warning-text"
+            }`}
           >
-            {task.title}
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Group</span>
-            <GroupBadge groupPath={task.group} color={groupColor} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Deadline</span>
-            <span>{resolvedDate ? formatDate(resolvedDate) : task.deadline || "—"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Assignee</span>
-            {task.assignee ? <AssigneeBadge label={task.assignee} variant="dark" /> : <span>—</span>}
-          </div>
+            {answered ? "answered" : "unanswered"}
+          </span>
+          {question.recurring && (
+            <span className="rounded bg-white/20 px-1.5 py-0.5 text-xs">recurring</span>
+          )}
         </div>
-      </PanelSection>
-
+      }
+      task={task}
+      itemLabel="question"
+      onClose={onClose}
+    >
       {/* ── Question details ──────────────────────────────── */}
       <PanelSection title="Question Details">
         <div className="space-y-2 text-sm">
@@ -154,6 +90,6 @@ export function QuestionDetail({ task, questionIndex, onClose }: QuestionDetailP
           />
         </div>
       </PanelSection>
-    </div>
+    </ItemDetailShell>
   );
 }

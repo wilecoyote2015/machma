@@ -1,7 +1,8 @@
 /**
- * Left sidebar filter panel.
- * Uses PanelSection for visual consistency with the detail panel,
- * and FilterToggleGroup for consistent toggle styling.
+ * Left sidebar filter panel for the Tasks and Timeline views.
+ *
+ * Uses shared filter sections for deadline, groups, and helpers.
+ * Task-specific sections (flags, status, tags) remain inline.
  */
 
 import { useMemo } from "react";
@@ -11,16 +12,12 @@ import { PanelSection } from "@/components/common/PanelSection";
 import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
-import { GroupBadge } from "@/components/ui/GroupBadge";
-
-const DEADLINE_OPTIONS: { label: string; value: number | null }[] = [
-  { label: "All", value: null },
-  { label: "7 days", value: 7 },
-  { label: "14 days", value: 14 },
-  { label: "30 days", value: 30 },
-  { label: "90 days", value: 90 },
-];
+import {
+  FilterPanelShell,
+  DeadlineFilterSection,
+  GroupFilterSection,
+  AssigneeFilterSection,
+} from "@/components/filters/FilterSections";
 
 const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
   { label: "todo", value: "todo" },
@@ -59,22 +56,11 @@ export function FilterPanel() {
     filters.deadlineWithinDays !== null;
 
   return (
-    <div className="space-y-1 text-white">
-      {hasActiveFilters && (
-        <div className="flex justify-end pb-1">
-          <button onClick={clearFilters} className="text-xs text-white/70 underline hover:text-white">
-            Clear all
-          </button>
-        </div>
-      )}
-
-      <PanelSection title="Deadline">
-        <FilterToggleGroup
-          options={DEADLINE_OPTIONS}
-          selected={filters.deadlineWithinDays}
-          onToggle={(v) => setDeadlineWithinDays(v)}
-        />
-      </PanelSection>
+    <FilterPanelShell hasActiveFilters={hasActiveFilters} onClearAll={clearFilters}>
+      <DeadlineFilterSection
+        value={filters.deadlineWithinDays}
+        onChange={setDeadlineWithinDays}
+      />
 
       <PanelSection title="Flags">
         <div className="space-y-1">
@@ -109,43 +95,16 @@ export function FilterPanel() {
         <FilterToggleGroup options={tagOptions} selected={filters.tags} onToggle={toggleTag} />
       </PanelSection>
 
-      <PanelSection title="Groups">
-        <div className="space-y-0.5">
-          {project.groups.map((group) => (
-            <label
-              key={group.path}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-hover"
-            >
-              <input
-                type="checkbox"
-                checked={filters.groups.size === 0 || filters.groups.has(group.path)}
-                onChange={() => toggleGroup(group.path)}
-                className="accent-white"
-              />
-              <GroupBadge groupPath={group.path} color={group.meta.color} />
-            </label>
-          ))}
-        </div>
-      </PanelSection>
+      <GroupFilterSection
+        selected={filters.groups}
+        onToggle={toggleGroup}
+      />
 
-      <PanelSection title="Helpers">
-        <div className="space-y-0.5">
-          {Object.entries(project.helpers).map(([id, helper]) => (
-            <label
-              key={id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-hover"
-            >
-              <input
-                type="checkbox"
-                checked={filters.helpers.size === 0 || filters.helpers.has(id)}
-                onChange={() => toggleHelper(id)}
-                className="accent-white"
-              />
-              <AssigneeBadge label={helper.name} variant="dark" />
-            </label>
-          ))}
-        </div>
-      </PanelSection>
-    </div>
+      <AssigneeFilterSection
+        title="Helpers"
+        selected={filters.helpers}
+        onToggle={toggleHelper}
+      />
+    </FilterPanelShell>
   );
 }

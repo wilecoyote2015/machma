@@ -3,13 +3,14 @@
  * Shares the same filter panel and task detail panel as the timeline.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Task } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
 import { resolveDeadline, formatDate } from "@/lib/dates";
 import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
+import { SortableTable, type Column } from "@/components/common/SortableTable";
 import { FilterPanel } from "@/components/filters/FilterPanel";
 import { TaskDetail } from "@/components/detail/TaskDetail";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -18,17 +19,14 @@ import { GroupBadge } from "@/components/ui/GroupBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 
-type SortKey = "title" | "deadline" | "assignee" | "helpers" | "status" | "group";
-type SortDir = "asc" | "desc";
-
-const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
-  { key: "title", label: "Title", className: "w-48" },
-  { key: "group", label: "Group", className: "w-36" },
-  { key: "deadline", label: "Deadline", className: "w-28" },
-  { key: "assignee", label: "Assignee", className: "w-24" },
-  { key: "helpers", label: "Helpers", className: "w-20" },
-  { key: "status", label: "Status", className: "w-28" },
-];
+/** Pre-computed row data to avoid re-resolving dates and colors inside render */
+interface TaskRow {
+  task: Task;
+  resolvedDeadline: Date | null;
+  groupColor: string;
+  hasUnresolvedIssues: boolean;
+  hasUnansweredQuestions: boolean;
+}
 
 export function TaskTableView() {
   const project = useProjectStore((s) => s.project)!;
@@ -36,52 +34,99 @@ export function TaskTableView() {
   const selectedTaskId = useProjectStore((s) => s.selectedTaskId);
   const selectTask = useProjectStore((s) => s.selectTask);
 
-  const [sortKey, setSortKey] = useState<SortKey>("deadline");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-
   const anchorDate = project.meta.anchor_date;
+
   const groupColorMap = useMemo(
     () => new Map(project.groups.map((g) => [g.path, g.meta.color])),
     [project.groups],
   );
 
-  const filteredTasks = useMemo(
-    () => applyFilters(project.tasks, filters, anchorDate),
-    [project.tasks, filters, anchorDate],
+  const rows: TaskRow[] = useMemo(() => {
+    const filtered = applyFilters(project.tasks, filters, anchorDate);
+    return filtered.map((task) => ({
+      task,
+      resolvedDeadline: resolveDeadline(task.deadline, anchorDate),
+      groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
+      hasUnresolvedIssues: task.issues.some((i) => !i.assignee && !i.solution),
+      hasUnansweredQuestions: task.questions.some((q) => !q.answer.trim()),
+    }));
+  }, [project.tasks, filters, anchorDate, groupColorMap]);
+
+  const columns: Column<TaskRow>[] = useMemo(
+    () => [
+      {
+        key: "title",
+        label: "Title",
+        thClassName: "w-48",
+        cellClassName: "px-2 py-2 font-medium text-gray-800",
+        compare: (a, b) => a.task.title.localeCompare(b.task.title),
+        render: (r) => r.task.title,
+      },
+      {
+        key: "group",
+        label: "Group",
+        thClassName: "w-36",
+        compare: (a, b) => a.task.group.localeCompare(b.task.group),
+        render: (r) => (
+          <GroupBadge groupPath={r.task.group} color={r.groupColor} className="text-gray-600 text-xs" />
+        ),
+      },
+      {
+        key: "deadline",
+        label: "Deadline",
+        thClassName: "w-28",
+        cellClassName: "px-2 py-2 text-gray-600",
+        compare: (a, b) =>
+          (a.resolvedDeadline?.getTime() ?? Infinity) - (b.resolvedDeadline?.getTime() ?? Infinity),
+        render: (r) =>
+          r.resolvedDeadline ? formatDate(r.resolvedDeadline) : r.task.deadline || "—",
+      },
+      {
+        key: "assignee",
+        label: "Assignee",
+        thClassName: "w-24",
+        compare: (a, b) => a.task.assignee.localeCompare(b.task.assignee),
+        render: (r) =>
+          r.task.assignee ? <AssigneeBadge label={r.task.assignee} variant="light" /> : "—",
+      },
+      {
+        key: "helpers",
+        label: "Helpers",
+        thClassName: "w-20",
+        cellClassName: "px-2 py-2 text-gray-600",
+        compare: (a, b) => a.task.helpers.length - b.task.helpers.length,
+        render: (r) => `${r.task.helpers.length}/${r.task.n_helpers_needed}`,
+      },
+      {
+        key: "status",
+        label: "Status",
+        thClassName: "w-28",
+        compare: (a, b) => a.task.status.localeCompare(b.task.status),
+        render: (r) => <StatusBadge status={r.task.status} />,
+      },
+      {
+        key: "issues",
+        label: "Issues",
+        thClassName: "w-16",
+        cellClassName: "px-1 py-2 text-center",
+        render: (r) => (r.hasUnresolvedIssues ? <IssueIndicator /> : null),
+      },
+      {
+        key: "questions",
+        label: "Questions",
+        thClassName: "w-20",
+        cellClassName: "px-1 py-2 text-center",
+        render: (r) => (r.hasUnansweredQuestions ? <QuestionIndicator /> : null),
+      },
+      {
+        key: "description",
+        label: "Description",
+        cellClassName: "max-w-0 truncate px-2 py-2 text-gray-500",
+        render: (r) => r.task.description || "—",
+      },
+    ],
+    [],
   );
-
-  const sortedTasks = useMemo(() => {
-    const compare = (a: Task, b: Task): number => {
-      switch (sortKey) {
-        case "title":
-          return a.title.localeCompare(b.title);
-        case "deadline": {
-          const da = resolveDeadline(a.deadline, anchorDate)?.getTime() ?? Infinity;
-          const db = resolveDeadline(b.deadline, anchorDate)?.getTime() ?? Infinity;
-          return da - db;
-        }
-        case "assignee":
-          return a.assignee.localeCompare(b.assignee);
-        case "helpers":
-          return a.helpers.length - b.helpers.length;
-        case "status":
-          return a.status.localeCompare(b.status);
-        case "group":
-          return a.group.localeCompare(b.group);
-      }
-    };
-    const sorted = [...filteredTasks].sort(compare);
-    return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [filteredTasks, sortKey, sortDir, anchorDate]);
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
 
   const selectedTask = selectedTaskId
     ? project.tasks.find((t) => t.id === selectedTaskId) ?? null
@@ -92,72 +137,15 @@ export function TaskTableView() {
       filterPanel={<FilterPanel />}
       detailPanel={selectedTask ? <TaskDetail task={selectedTask} /> : null}
     >
-      <div className="h-full overflow-auto p-4">
-        <table className="w-full table-fixed border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b-2 border-gray-200">
-              {COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className={`cursor-pointer px-2 py-2 font-semibold text-gray-600 hover:text-gray-800 ${col.className ?? ""}`}
-                >
-                  {col.label}
-                  {sortKey === col.key && (
-                    <span className="ml-1 text-xs">{sortDir === "asc" ? "▲" : "▼"}</span>
-                  )}
-                </th>
-              ))}
-              <th className="w-16 px-1 py-2 font-semibold text-gray-600">Issues</th>
-              <th className="w-20 px-1 py-2 font-semibold text-gray-600">Questions</th>
-              <th className="px-2 py-2 font-semibold text-gray-600">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedTasks.map((task) => {
-              const resolved = resolveDeadline(task.deadline, anchorDate);
-              const hasIssues = task.issues.some((i) => !i.assignee && !i.solution);
-              const hasQuestions = task.questions.some((q) => !q.answer.trim());
-              const isSelected = task.id === selectedTaskId;
-              const groupColor = groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR;
-
-              return (
-                <tr
-                  key={task.id}
-                  onClick={() => selectTask(isSelected ? null : task.id)}
-                  className={`cursor-pointer border-b border-gray-100 transition-colors ${
-                    isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
-                  <td className="px-2 py-2">
-                    <GroupBadge groupPath={task.group} color={groupColor} className="text-gray-600 text-xs" />
-                  </td>
-                  <td className="px-2 py-2 text-gray-600">
-                    {resolved ? formatDate(resolved) : task.deadline || "—"}
-                  </td>
-                  <td className="px-2 py-2">
-                    {task.assignee ? <AssigneeBadge label={task.assignee} variant="light" /> : "—"}
-                  </td>
-                  <td className="px-2 py-2 text-gray-600">
-                    {task.helpers.length}/{task.n_helpers_needed}
-                  </td>
-                  <td className="px-2 py-2"><StatusBadge status={task.status} /></td>
-                  <td className="px-1 py-2 text-center">{hasIssues && <IssueIndicator />}</td>
-                  <td className="px-1 py-2 text-center">{hasQuestions && <QuestionIndicator />}</td>
-                  <td className="max-w-0 truncate px-2 py-2 text-gray-500">
-                    {task.description || "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {sortedTasks.length === 0 && (
-          <p className="mt-8 text-center text-gray-400">No tasks match the current filters</p>
-        )}
-      </div>
+      <SortableTable
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.task.id}
+        defaultSortKey="deadline"
+        selectedRowKey={selectedTaskId}
+        onRowClick={(r) => selectTask(r.task.id === selectedTaskId ? null : r.task.id)}
+        emptyMessage="No tasks match the current filters"
+      />
     </ViewLayout>
   );
 }

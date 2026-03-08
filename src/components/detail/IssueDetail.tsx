@@ -1,37 +1,16 @@
 /**
  * Right sidebar panel showing the detail of a selected issue.
  *
- * Displays issue metadata (title, status, assignee, description, solution)
- * and a clickable parent task link. Clicking the task name replaces
- * the panel content with the full TaskDetail; a back button returns
- * to the issue detail view.
+ * Uses ItemDetailShell for the shared header, task info section,
+ * and TaskDetail toggle. Only issue-specific editing sections
+ * (title, assignee, description, solution) are defined here.
  */
 
-import { useState } from "react";
 import type { Task, TaskIssue } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
 import { MarkdownBlock } from "@/components/common/MarkdownBlock";
-import { GroupBadge } from "@/components/ui/GroupBadge";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
-import { TaskDetail } from "@/components/detail/TaskDetail";
-import { resolveDeadline, formatDate } from "@/lib/dates";
-import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
-
-/** Badge for resolved / unresolved issue status */
-function IssueStatusBadge({ resolved }: { resolved: boolean }) {
-  return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${
-        resolved
-          ? "bg-success-light text-success-text"
-          : "bg-danger-light text-danger-text"
-      }`}
-    >
-      {resolved ? "resolved" : "unresolved"}
-    </span>
-  );
-}
+import { ItemDetailShell } from "@/components/detail/ItemDetailShell";
 
 interface IssueDetailProps {
   /** The parent task containing this issue */
@@ -46,16 +25,11 @@ export function IssueDetail({ task, issueIndex, onClose }: IssueDetailProps) {
   const project = useProjectStore((s) => s.project)!;
   const updateTask = useProjectStore((s) => s.updateTask);
 
-  const [showTaskDetail, setShowTaskDetail] = useState(false);
-
   const issue = task.issues[issueIndex];
   if (!issue) return null;
 
   const resolved = !!issue.solution.trim();
   const helperIds = Object.keys(project.helpers);
-  const groupColor =
-    project.groups.find((g) => g.path === task.group)?.meta.color ?? DEFAULT_GROUP_COLOR;
-  const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date);
 
   /** Persist an updated issue back to the task */
   const updateIssue = (updated: TaskIssue) => {
@@ -64,61 +38,22 @@ export function IssueDetail({ task, issueIndex, onClose }: IssueDetailProps) {
     updateTask({ ...task, issues });
   };
 
-  // Delegate to TaskDetail when the user clicked the task name
-  if (showTaskDetail) {
-    return (
-      <div className="space-y-1 text-white">
-        <button
-          onClick={() => setShowTaskDetail(false)}
-          className="mb-2 flex items-center gap-1 text-sm text-white/70 hover:text-white"
-        >
-          ← Back to issue
-        </button>
-        <TaskDetail task={task} />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-1 text-white">
-      {/* ── Header ───────────────────────────────────────── */}
-      <div className="flex items-start justify-between pb-2">
-        <div className="flex-1">
-          <h2 className="text-xl font-bold">{issue.title}</h2>
-          <div className="mt-1">
-            <IssueStatusBadge resolved={resolved} />
-          </div>
-        </div>
-        <button onClick={onClose} className="text-white/70 hover:text-white" title="Close">
-          ✕
-        </button>
-      </div>
-
-      {/* ── Parent task info ──────────────────────────────── */}
-      <PanelSection title="Task">
-        <div className="space-y-1.5 text-sm">
-          <button
-            onClick={() => setShowTaskDetail(true)}
-            className="text-left font-medium text-blue-300 underline hover:text-blue-200"
-            title="Open full task detail"
-          >
-            {task.title}
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Group</span>
-            <GroupBadge groupPath={task.group} color={groupColor} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Deadline</span>
-            <span>{resolvedDate ? formatDate(resolvedDate) : task.deadline || "—"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-white/70">Assignee</span>
-            {task.assignee ? <AssigneeBadge label={task.assignee} variant="dark" /> : <span>—</span>}
-          </div>
-        </div>
-      </PanelSection>
-
+    <ItemDetailShell
+      title={issue.title}
+      headerExtra={
+        <span
+          className={`rounded px-2 py-0.5 text-xs font-medium ${
+            resolved ? "bg-success-light text-success-text" : "bg-danger-light text-danger-text"
+          }`}
+        >
+          {resolved ? "resolved" : "unresolved"}
+        </span>
+      }
+      task={task}
+      itemLabel="issue"
+      onClose={onClose}
+    >
       {/* ── Issue details ─────────────────────────────────── */}
       <PanelSection title="Issue Details">
         <div className="space-y-2 text-sm">
@@ -169,6 +104,6 @@ export function IssueDetail({ task, issueIndex, onClose }: IssueDetailProps) {
           />
         </div>
       </PanelSection>
-    </div>
+    </ItemDetailShell>
   );
 }
