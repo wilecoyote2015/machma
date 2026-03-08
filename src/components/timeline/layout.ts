@@ -33,6 +33,13 @@ export interface TaskNodeData extends Record<string, unknown> {
   assigneeName: string;
   /** Custom color for the assignee badge (from helper data) */
   assigneeColor: string;
+  /**
+   * When the task has a start_date, this is the pixel distance from the
+   * node's Y position (start date) down to the deadline Y position.
+   * Used by TaskNode to render a vertical line + T-bar (box-plot style).
+   * Zero or undefined when no start_date is set.
+   */
+  deadlineOffsetY: number;
 }
 
 /** Data payload for a timeline tick node */
@@ -529,17 +536,23 @@ export function computeLayout(
   const rangeDays = deadlineRangeDays(deadlineRange);
   const isDayView = rangeDays !== null && rangeDays <= HOURLY_TICK_THRESHOLD_DAYS;
 
-  // Resolve deadlines for ALL tasks (stable Y mapping and timeline axis).
-  // In normal mode, omit task.time so same-day tasks share a Y position.
-  // In day-view mode, include task.time for hourly Y resolution.
-  const allDates = allTasks
-    .map((t) => resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined))
-    .filter((d): d is Date => d !== null);
+  // Resolve dates for ALL tasks (stable Y mapping and timeline axis).
+  // Include both deadlines and start dates so the Y mapper covers the full range.
+  // In normal mode, omit time so same-day tasks share a Y position.
+  // In day-view mode, include time for hourly Y resolution.
+  const allDates: Date[] = [];
+  for (const t of allTasks) {
+    const dl = resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined);
+    if (dl) allDates.push(dl);
+    const sd = resolveDeadline(t.start_date, anchorDate, isDayView ? t.start_time : undefined);
+    if (sd) allDates.push(sd);
+  }
 
-  // Resolve deadlines for filtered tasks (visible nodes)
+  // Resolve both start date and deadline for filtered tasks (visible nodes)
   const filteredResolved = filteredTasks.map((t) => ({
     task: t,
-    date: resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined),
+    startDate: resolveDeadline(t.start_date, anchorDate, isDayView ? t.start_time : undefined),
+    deadlineDate: resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined),
   }));
 
   // No dates across ALL tasks → fall back to simple vertical layout for filtered tasks
@@ -548,7 +561,7 @@ export function computeLayout(
       id: task.id,
       type: "taskNode",
       position: { x: NODES_START_X, y: i * 100 },
-      data: buildTaskNodeData(task, groupColorMap, helpers, anchorDate),
+      data: buildTaskNodeData(task, groupColorMap, helpers, anchorDate, 0),
     }));
     return { nodes, edges: buildDependencyEdges(filteredTasks) };
   }
@@ -580,19 +593,23 @@ export function computeLayout(
   // Y mapper uses filtered tasks' dates in day-view (high resolution)
   // and all tasks' dates in normal mode (stable axis)
   const yMapperDates = isDayView
-    ? filteredResolved.map((r) => r.date).filter((d): d is Date => d !== null)
+    ? filteredResolved
+        .flatMap((r) => [r.startDate, r.deadlineDate])
+        .filter((d): d is Date => d !== null)
     : allDates;
 
   const timeToY = buildYMapper(yMapperDates, minTime, maxTime, effectivePixelsPerDay);
   const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
   // ── Build placements for filtered tasks only ──────────────────────
+  // When a task has start_date, position it at the start date (not deadline).
   const placements: TaskPlacement[] = [];
   const tasksByGroup = new Map<string, TaskPlacement[]>();
 
-  for (const { task, date } of filteredResolved) {
-    const y = date ? timeToY(date.getTime()) : undatedY;
-    const p: TaskPlacement = { task, y, date, x: NODES_START_X };
+  for (const { task, startDate, deadlineDate } of filteredResolved) {
+    const positionDate = startDate ?? deadlineDate;
+    const y = positionDate ? timeToY(positionDate.getTime()) : undatedY;
+    const p: TaskPlacement = { task, y, date: positionDate, x: NODES_START_X };
     placements.push(p);
 
     const arr = tasksByGroup.get(task.group) ?? [];
@@ -610,12 +627,27 @@ export function computeLayout(
   }
 
   // ── Build task nodes ──────────────────────────────────────────────
-  const taskNodes: Node<TaskNodeData>[] = placements.map((p) => ({
-    id: p.task.id,
-    type: "taskNode",
-    position: { x: p.x, y: p.y },
-    data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate),
-  }));
+  // Pre-index filtered resolved data by task id for deadline offset lookup
+  const resolvedMap = new Map(
+    filteredResolved.map((r) => [r.task.id, r]),
+  );
+
+  const taskNodes: Node<TaskNodeData>[] = placements.map((p) => {
+    const resolved = resolvedMap.get(p.task.id)!;
+    let deadlineOffsetY = 0;
+    // When task has a start_date AND a deadline, compute the vertical distance
+    if (resolved.startDate && resolved.deadlineDate) {
+      const deadlineY = timeToY(resolved.deadlineDate.getTime());
+      deadlineOffsetY = Math.max(0, deadlineY - p.y);
+    }
+
+    return {
+      id: p.task.id,
+      type: "taskNode",
+      position: { x: p.x, y: p.y },
+      data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate, deadlineOffsetY),
+    };
+  });
 
   // ── Generate timeline tick nodes ──────────────────────────────────
   let tickDates: Date[];
@@ -673,6 +705,7 @@ function buildTaskNodeData(
   groupColorMap: Map<string, string>,
   helpers: Record<string, { name: string; color?: string }>,
   anchorDate: string,
+  deadlineOffsetY: number = 0,
 ): TaskNodeData {
   const hasUnresolvedIssues = task.issues.some(
     (issue) => !issue.assignee && !issue.solution,
@@ -693,6 +726,7 @@ function buildTaskNodeData(
     hasUnansweredQuestions,
     assigneeName,
     assigneeColor,
+    deadlineOffsetY,
   };
 }
 

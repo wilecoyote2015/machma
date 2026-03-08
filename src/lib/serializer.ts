@@ -31,6 +31,8 @@ export function serializeTask(task: Task): string {
   parts.push(`# ${task.title}`);
   parts.push(`deadline: ${task.deadline}  `);
   if (task.time) parts.push(`time: ${task.time}  `);
+  if (task.start_date) parts.push(`start_date: ${task.start_date}  `);
+  if (task.start_time) parts.push(`start_time: ${task.start_time}  `);
   parts.push(`assignee: ${task.assignee}  `);
   parts.push(`n_helpers_needed: ${task.n_helpers_needed}  `);
   parts.push(`status: ${task.status}`);

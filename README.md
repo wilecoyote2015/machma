@@ -46,8 +46,10 @@ A React Flow canvas showing tasks as nodes positioned on a vertical date axis. E
 
 **Day-view mode**: When the deadline date range filter covers 1–2 days, the timeline automatically switches to a high-resolution day view with hourly tick marks (instead of daily/weekly). Tasks with different time-of-day values are positioned at visually distinct vertical positions, enabling fine-grained scheduling within a single day.
 
+**Start date duration lines**: When a task has a start date set, the task node is drawn at the start date position (not the deadline). A vertical line extends downward from the node to the deadline position, ending in a horizontal T-bar (box-plot style). This visually represents the task's time span on the timeline.
+
 ### Tasks
-A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee (inline editable dropdown showing initials), helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. The assignee column is directly editable — click the dropdown to change the assignee without opening the detail panel. Click a row to open the task detail panel.
+A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, start date, assignee (inline editable dropdown showing initials), helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. The assignee column is directly editable — click the dropdown to change the assignee without opening the detail panel. Click a row to open the task detail panel. When sorting by deadline or start date, blocks of 2+ tasks on the same day are visually separated by empty rows for readability.
 
 ### Issues
 A flat sortable table of all issues across all tasks. Each row represents one issue, with columns: name, task (parent), group, deadline, task assignee, issue assignee, status (resolved/unresolved), and task description. The filter panel can filter by issue status (resolved/unresolved/both), issue assignee, task assignee, task group, and task deadline proximity. Clicking a row opens the issue detail panel (not the full task). From the issue detail panel, clicking the task name opens the full task detail in-place with a back button to return.
@@ -59,7 +61,7 @@ A flat sortable table of all questions across all tasks. Each row represents one
 A task-centric view for managing helper assignments. Shows all tasks that require helpers as individual cards, sorted by deadline. Each card displays the task header (group, title, deadline, status, and a green/amber fill indicator showing assigned vs. required helpers). Below the header, an editable "required helpers" field and a table of assigned helpers (with remove buttons) allow quick management. A dropdown adds unassigned helpers. Clicking a task card header opens the task detail panel. The shared filter panel (groups, deadline, status, tags, etc.) applies to the task list.
 
 ### Helpers
-Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, email, phone, address, and a custom display color (via color picker). The helper's color is used for their assignee badge on timeline nodes and their dot indicator in filter panels.
+Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, role, email, phone, address, and a custom display color (via color picker). The `role` field is a free-text descriptor (e.g. "core member", "volunteer") for organizational purposes. The helper's color is used for their assignee badge on timeline nodes and their dot indicator in filter panels.
 
 ### Entities
 Inline-editable table for managing external contacts and organizations (`external_entities.json`).
@@ -68,7 +70,7 @@ Inline-editable table for managing external contacts and organizations (`externa
 
 ### Filtering
 The left filter panel (toggle via the filter icon) provides:
-- **Deadline**: date range filter with From/To date pickers and preset buttons (7d, 14d, 30d, 90d). Presets fill in today as start and today+N days as end. You can also manually enter arbitrary date ranges. Filtering to a single day or 2-day range triggers the timeline's day-view mode with hourly ticks.
+- **Deadline**: date range filter with From/To date pickers and preset buttons (All, Anchor, 7d, 14d, 30d, 90d). The "Anchor" preset shows the project's anchor date as a single day (triggers day-view mode). Time-based presets fill in today as start and today+N days as end. You can also manually enter arbitrary date ranges. Filtering to a single day or 2-day range triggers the timeline's day-view mode with hourly ticks.
 - **Flags**: checkboxes for "has unresolved issues" and "has unanswered questions"
 - **Status**: toggle chips (todo, in progress, finished, cancelled)
 - **Tags**: toggle chips for all tags found across tasks
@@ -81,7 +83,7 @@ Assignee and Helpers are independent filters — Assignee matches the task's pri
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:
 - **Title**: editable inline at the top of the panel
-- **Metadata**: deadline, time (optional HH:MM), status, assignee, group (dropdown selector — changing group moves the file on disk)
+- **Metadata**: deadline, time (optional HH:MM), start date, start time, status, assignee, group (dropdown selector — changing group moves the file on disk)
 - **Helpers**: required count + assigned helper chips with add/remove
 - **Relations**: dependencies, tags, external entities (collapsed by default)
 - **Description**: rendered markdown with click-to-edit
@@ -136,7 +138,7 @@ The new group directory and `group.json` are created on disk immediately.
 
 ### `helpers.json`
 
-A map keyed by short identifier. Each entry has: `name`, `email`, `phone`, `address`, `color` (optional hex color for display badges).
+A map keyed by short identifier. Each entry has: `name`, `role` (free text), `email`, `phone`, `address`, `color` (optional hex color for display badges).
 
 ### `external_entities.json`
 
@@ -153,6 +155,8 @@ Each task is a Markdown file with a structured format. The filename (without `.m
 **Header fields** (after `# Title`):
 - `deadline`: relative offset (`-5d`, `+2d`) or absolute date (`YYYY-MM-DD` or `YYYY-MM-DD HH:MM`)
 - `time`: optional time of day (`HH:MM`); applied to the resolved deadline date
+- `start_date`: optional start date (same format as deadline); when set, timeline positions the node here
+- `start_time`: optional time of day (`HH:MM`); applied to the resolved start date
 - `assignee`: helper ID
 - `n_helpers_needed`: integer
 - `status`: `todo`, `in_progress`, `finished`, or `cancelled`
@@ -175,6 +179,8 @@ User-written headings within content sections are automatically elevated on save
 # Feed the Horses
 deadline: -5d  
 time: 14:30  
+start_date: -7d  
+start_time: 09:00  
 assignee: bs  
 n_helpers_needed: 10  
 status: in_progress

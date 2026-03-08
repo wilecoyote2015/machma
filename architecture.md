@@ -56,7 +56,7 @@ src/
 │   ├── project-loader.ts             # Reads entire project directory into Project model
 │   ├── watcher.ts                    # Timestamp snapshot diffing for external change detection
 │   ├── filters.ts                    # Shared task filtering logic (used by timeline + table)
-│   └── dates.ts                      # Deadline resolution (relative/absolute) and formatting
+│   └── dates.ts                      # Date resolution (relative/absolute) and formatting (YYYY-MM-DD)
 │
 ├── hooks/
 │   └── useFileWatcher.ts             # React hook: polls for external file changes every 3s
@@ -66,7 +66,7 @@ src/
 │   │
 │   ├── common/
 │   │   ├── ViewLayout.tsx            # Generic 3-panel layout (filter | content | detail)
-│   │   ├── SortableTable.tsx         # Generic sortable table: sort state, column definitions, row selection
+│   │   ├── SortableTable.tsx         # Generic sortable table: sort state, column definitions, row selection, day separators
 │   │   ├── PanelSection.tsx          # Collapsible section with indented content for sidebars
 │   │   ├── MarkdownBlock.tsx         # View/edit toggle: react-markdown ↔ textarea
 │   │   ├── EditableRecordTable.tsx   # Generic inline-editable keyed table (used by Helpers/Entities)
@@ -160,6 +160,8 @@ Both operations persist immediately to disk via `updateTask` in the Zustand stor
 
 **Task time-of-day:** Each task has an optional `time` field (HH:MM). When set, `resolveDeadline` applies it to the resolved date, giving tasks with different times distinct timestamps and thus distinct Y positions on the timeline — particularly visible in day-view mode.
 
+**Start date → deadline duration lines:** Each task has optional `start_date` and `start_time` fields. When `start_date` is set, the task node is positioned at the start date's Y position instead of the deadline. A vertical line extends from the node downward to the deadline Y position, terminating in a horizontal T-bar (box-plot style). This makes the task's time span visually apparent. The duration line is rendered as an absolutely-positioned overlay within the `TaskNode` component using a `deadlineOffsetY` value computed in `layout.ts`. Both start dates and deadlines feed into the Y mapper so the axis covers the full range.
+
 **Dangling edge prevention:** `buildDependencyEdges` only creates edges when both the source and target task exist in the current (potentially filtered) task set. This prevents React Flow from receiving edges referencing non-existent nodes.
 
 ### ViewLayout Abstraction
@@ -170,9 +172,11 @@ The `ViewLayout` component encapsulates the three-panel pattern (filter sidebar 
 
 All table views (Tasks, Issues, Questions) share a generic **`SortableTable<T>`** component that encapsulates table structure, sort state management, clickable column headers with sort indicators, row selection highlighting, and empty-state display. Each view defines its own column array with per-column render functions and optional comparators; the generic component handles all the common logic.
 
+**Visual day separation:** `SortableTable` supports an optional `separatorGroupKeys` prop — a map from sort column keys to group-key extractors. When sorting by a mapped column (e.g. `deadline`, `start_date`), empty separator rows are automatically inserted between blocks of 2+ consecutive rows sharing the same group key (e.g. same date). Separators are not inserted before the first or after the last row, and adjacent blocks share a single separator.
+
 All filter panels compose from shared building blocks in **`FilterSections.tsx`**:
 - `FilterPanelShell` — outer wrapper with "Clear all" button and consistent styling
-- `DeadlineFilterSection` — deadline date range filter with From/To date inputs and preset buttons (7d, 14d, 30d, 90d) that fill in the dates. Presets set start=today, end=today+N days.
+- `DeadlineFilterSection` — deadline date range filter with From/To date inputs and preset buttons (All, Anchor, 7d, 14d, 30d, 90d). The "Anchor" preset sets both start and end to the project's anchor date (single-day view, triggers day-view mode in the timeline). The time-based presets set start=today, end=today+N days. The anchor date is read from the project store directly.
 - `GroupFilterSection` — group checkbox list (reads groups from the store)
 - `AssigneeFilterSection` — helper checkbox list with parameterized title
 - `toggleSet` — immutable Set toggle utility
@@ -225,12 +229,20 @@ The raw helper ID is never displayed to users outside the Helper List view. Inte
 
 ### Helper Colors
 
+Each helper in `helpers.json` has an optional `role` field (free text, e.g. "core member", "volunteer") shown only in the Helpers management table for informational purposes and quick inline editing.
+
+### Helper Colors
+
 Each helper in `helpers.json` has an optional `color` field (hex string). This color is used:
 - In `AssigneeBadge` on timeline nodes (badge background)
 - In `PersonBadge` in filter panels (colored dot)
 - Falls back to `DEFAULT_ASSIGNEE_COLOR` (green-700) when empty/missing.
 
 The color is editable via a native color picker in the Helpers view (`EditableRecordTable` supports a `fieldTypes` prop to render `<input type="color">` for specific fields).
+
+### Centralized Date Formatting (DRY)
+
+All date display uses a single `formatDate(date)` → `YYYY-MM-DD` function in `lib/dates.ts`. This is the canonical format across the entire application: display strings, `<input type="date">` bindings, timeline tick labels, and filter preset calculations all use `formatDate` — eliminating previously scattered inline date formatting. `formatDateTime` extends this with ` HH:MM` for non-midnight times.
 
 ### Centralized Constants (DRY)
 

@@ -10,6 +10,7 @@
 
 import type { ReactNode } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { formatDate } from "@/lib/dates";
 import { PanelSection } from "@/components/common/PanelSection";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { PersonBadge } from "@/components/ui/PersonBadge";
@@ -71,13 +72,6 @@ const DEADLINE_PRESETS: { label: string; days: number }[] = [
   { label: "90d", days: 90 },
 ];
 
-/** Format a Date as YYYY-MM-DD for <input type="date"> value binding. */
-function toISODate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 interface DeadlineFilterSectionProps {
   /** Start of deadline range (YYYY-MM-DD) or null for no lower bound */
@@ -93,6 +87,7 @@ interface DeadlineFilterSectionProps {
 /**
  * PanelSection with deadline date range: two date inputs plus preset buttons.
  * Presets fill in the From/To fields; the user can adjust them manually.
+ * Reads the project anchor date from the store for the "Anchor" preset.
  */
 export function DeadlineFilterSection({
   start,
@@ -101,15 +96,17 @@ export function DeadlineFilterSection({
   onEndChange,
   title = "Deadline",
 }: DeadlineFilterSectionProps) {
+  const anchorDate = useProjectStore((s) => s.project?.meta.anchor_date);
   /** Check if the current range matches a preset (today → today+N days). */
-  const today = toISODate(new Date());
+  const today = formatDate(new Date());
   const activePreset = DEADLINE_PRESETS.find((p) => {
     const presetEnd = new Date();
     presetEnd.setDate(presetEnd.getDate() + p.days);
-    return start === today && end === toISODate(presetEnd);
+    return start === today && end === formatDate(presetEnd);
   });
 
   const isAll = !start && !end;
+  const isAnchor = !!anchorDate && start === anchorDate && end === anchorDate;
 
   return (
     <PanelSection title={title}>
@@ -124,17 +121,27 @@ export function DeadlineFilterSection({
           >
             {isAll && "✓ "}All
           </button>
+          {anchorDate && (
+            <button
+              onClick={() => { onStartChange(anchorDate); onEndChange(anchorDate); }}
+              className={`rounded px-2 py-0.5 text-xs font-medium transition ${
+                isAnchor ? "bg-white text-primary" : "bg-primary-muted text-white hover:bg-primary-light"
+              }`}
+            >
+              {isAnchor && "✓ "}Anchor
+            </button>
+          )}
           {DEADLINE_PRESETS.map((p) => {
-            const active = activePreset === p;
+            const active = !isAnchor && activePreset === p;
             return (
               <button
                 key={p.days}
                 onClick={() => {
-                  const todayStr = toISODate(new Date());
+                  const todayStr = formatDate(new Date());
                   const endDate = new Date();
                   endDate.setDate(endDate.getDate() + p.days);
                   onStartChange(todayStr);
-                  onEndChange(toISODate(endDate));
+                  onEndChange(formatDate(endDate));
                 }}
                 className={`rounded px-2 py-0.5 text-xs font-medium transition ${
                   active ? "bg-white text-primary" : "bg-primary-muted text-white hover:bg-primary-light"

@@ -60,15 +60,15 @@ export function resolveDeadline(
   return date;
 }
 
-/** Format a Date to a display string (YYYY/MM/DD). */
+/** Format a Date to a display string (YYYY-MM-DD). */
 export function formatDate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  return `${y}/${m}/${d}`;
+  return `${y}-${m}-${d}`;
 }
 
-/** Format a Date to YYYY/MM/DD HH:MM if it has a time component. */
+/** Format a Date to YYYY-MM-DD HH:MM if it has a non-zero time component. */
 export function formatDateTime(date: Date): string {
   const base = formatDate(date);
   const h = date.getHours();

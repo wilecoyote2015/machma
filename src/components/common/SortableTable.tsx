@@ -7,7 +7,7 @@
  * and optional comparators for sorting.
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 
 type SortDir = "asc" | "desc";
 
@@ -44,6 +44,52 @@ interface SortableTableProps<T> {
   onRowClick?: (row: T) => void;
   /** Message shown when data array is empty */
   emptyMessage?: string;
+  /**
+   * Optional: maps sort column keys to group-key extractors for visual block separation.
+   * When sorting by a key in this map, empty separator rows are inserted between
+   * blocks of 2+ consecutive rows sharing the same group key.
+   * e.g. { deadline: (r) => dateStr, start_date: (r) => startDateStr }
+   */
+  separatorGroupKeys?: Record<string, (row: T) => string | null>;
+}
+
+/**
+ * Compute indices where an empty separator row should be inserted.
+ *
+ * Rule: when 2+ consecutive rows share the same group key, insert a
+ * separator before and after the block — unless it's the first/last row
+ * or there's already a separator from an adjacent block.
+ */
+function computeSeparatorIndices<T>(
+  rows: T[],
+  getKey: (row: T) => string | null,
+): Set<number> {
+  const n = rows.length;
+  if (n === 0) return new Set();
+
+  // Identify contiguous blocks of same-key rows
+  const blocks: { start: number; end: number }[] = [];
+  let blockStart = 0;
+
+  for (let i = 1; i <= n; i++) {
+    const prevKey = getKey(rows[i - 1]!);
+    const currKey = i < n ? getKey(rows[i]!) : null;
+    if (i === n || currKey !== prevKey) {
+      const blockLen = i - blockStart;
+      if (blockLen >= 2 && prevKey !== null) {
+        blocks.push({ start: blockStart, end: i - 1 });
+      }
+      blockStart = i;
+    }
+  }
+
+  // Convert block boundaries to separator positions (insert BEFORE index)
+  const separators = new Set<number>();
+  for (const { start, end } of blocks) {
+    if (start > 0) separators.add(start);
+    if (end < n - 1) separators.add(end + 1);
+  }
+  return separators;
 }
 
 export function SortableTable<T>({
@@ -55,6 +101,7 @@ export function SortableTable<T>({
   selectedRowKey = null,
   onRowClick,
   emptyMessage = "No items match the current filters",
+  separatorGroupKeys,
 }: SortableTableProps<T>) {
   const [sortKey, setSortKey] = useState(defaultSortKey ?? "");
   const [sortDir, setSortDir] = useState<SortDir>(defaultSortDir);
@@ -67,6 +114,13 @@ export function SortableTable<T>({
     const sorted = [...data].sort(activeCompare);
     return sortDir === "desc" ? sorted.reverse() : sorted;
   }, [data, activeCompare, sortDir]);
+
+  /** Separator row indices — only when sorting by a separator-eligible column */
+  const separators = useMemo(() => {
+    const groupKeyFn = separatorGroupKeys?.[sortKey];
+    if (!groupKeyFn) return new Set<number>();
+    return computeSeparatorIndices(sortedData, groupKeyFn);
+  }, [sortedData, separatorGroupKeys, sortKey]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -102,23 +156,29 @@ export function SortableTable<T>({
           </tr>
         </thead>
         <tbody>
-          {sortedData.map((row) => {
+          {sortedData.map((row, idx) => {
             const key = rowKey(row);
             const isSelected = key === selectedRowKey;
             return (
-              <tr
-                key={key}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={`border-b border-gray-100 transition-colors ${
-                  onRowClick ? "cursor-pointer" : ""
-                } ${isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"}`}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className={col.cellClassName ?? "px-2 py-2"}>
-                    {col.render(row)}
-                  </td>
-                ))}
-              </tr>
+              <Fragment key={key}>
+                {separators.has(idx) && (
+                  <tr className="h-5" aria-hidden="true">
+                    <td colSpan={columns.length} />
+                  </tr>
+                )}
+                <tr
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={`border-b border-gray-100 transition-colors ${
+                    onRowClick ? "cursor-pointer" : ""
+                  } ${isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"}`}
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={col.cellClassName ?? "px-2 py-2"}>
+                      {col.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              </Fragment>
             );
           })}
         </tbody>

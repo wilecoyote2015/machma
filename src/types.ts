@@ -13,6 +13,8 @@ export interface ProjectMeta {
 /** An internal helper (from helpers.json), keyed by short ID */
 export interface Helper {
   name: string;
+  /** Free-text role description (e.g. "core member", "volunteer") */
+  role: string;
   email: string;
   phone: string;
   address: string;
@@ -103,6 +105,10 @@ export interface Task {
   deadline: string;
   /** Optional time of day for the deadline in HH:MM format (empty = no time) */
   time: string;
+  /** Optional start date: relative offset or absolute date (empty = no start date) */
+  start_date: string;
+  /** Optional time of day for the start date in HH:MM format (empty = no time) */
+  start_time: string;
   /** Helper ID of the primary assignee */
   assignee: string;
   /** Number of helpers needed */

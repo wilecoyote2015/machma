@@ -39,6 +39,8 @@ function createEmptyTask(id: string, group: string): Task {
     title: "",
     deadline: "",
     time: "",
+    start_date: "",
+    start_time: "",
     assignee: "",
     n_helpers_needed: 0,
     status: "todo",
@@ -197,6 +199,12 @@ export function parseTask(content: string, id: string, group: string): Task {
             break;
           case "time":
             task.time = value!.trim();
+            break;
+          case "start_date":
+            task.start_date = value!.trim();
+            break;
+          case "start_time":
+            task.start_time = value!.trim();
             break;
           case "assignee":
             task.assignee = value!.trim();

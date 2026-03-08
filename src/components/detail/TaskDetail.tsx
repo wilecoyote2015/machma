@@ -39,6 +39,7 @@ export function TaskDetail({ task }: TaskDetailProps) {
   );
 
   const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date, task.time);
+  const resolvedStartDate = resolveDeadline(task.start_date, project.meta.anchor_date, task.start_time);
   const helperIds = Object.keys(project.helpers);
   const taskIds = project.tasks.map((t) => t.id).filter((id) => id !== task.id);
   const entityIds = Object.keys(project.external_entities);
@@ -85,6 +86,32 @@ export function TaskDetail({ task }: TaskDetailProps) {
                 onClick={() => updateField("time", "")}
                 className="text-xs text-white/50 hover:text-white"
                 title="Clear time"
+              >✕</button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Start date</label>
+            <input
+              value={task.start_date}
+              onChange={(e) => updateField("start_date", e.target.value)}
+              className="input-panel flex-1"
+              placeholder="-5d or 2026-05-01"
+            />
+            {resolvedStartDate && <span className="text-xs text-white/70">{formatDateTime(resolvedStartDate)}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Start time</label>
+            <input
+              type="time"
+              value={task.start_time}
+              onChange={(e) => updateField("start_time", e.target.value)}
+              className="input-panel w-28"
+            />
+            {task.start_time && (
+              <button
+                onClick={() => updateField("start_time", "")}
+                className="text-xs text-white/50 hover:text-white"
+                title="Clear start time"
               >✕</button>
             )}
           </div>
@@ -236,8 +263,8 @@ export function TaskDetail({ task }: TaskDetailProps) {
         ))}
         <button
           onClick={() => {
-            const d = new Date();
-            const ds = `${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, "0")}_${String(d.getDate()).padStart(2, "0")}`;
+            const now = new Date();
+            const ds = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, "0")}_${String(now.getDate()).padStart(2, "0")}`;
             updateField("log", [...task.log, { date: ds, title: "New entry", body: "" }]);
           }}
           className="mt-1 text-sm text-white/70 hover:text-white"

@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import type { Task, TaskStatus } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
-import { resolveDeadline, formatDateTime } from "@/lib/dates";
+import { resolveDeadline, formatDate, formatDateTime } from "@/lib/dates";
 import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR, TASK_STATUSES, formatStatus } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
@@ -23,6 +23,7 @@ import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 interface TaskRow {
   task: Task;
   resolvedDeadline: Date | null;
+  resolvedStartDate: Date | null;
   groupColor: string;
   hasUnresolvedIssues: boolean;
   hasUnansweredQuestions: boolean;
@@ -49,6 +50,7 @@ export function TaskTableView() {
     return filtered.map((task) => ({
       task,
       resolvedDeadline: resolveDeadline(task.deadline, anchorDate, task.time),
+      resolvedStartDate: resolveDeadline(task.start_date, anchorDate, task.start_time),
       groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
       hasUnresolvedIssues: task.issues.some((i) => !i.assignee && !i.solution),
       hasUnansweredQuestions: task.questions.some((q) => !q.answer.trim()),
@@ -78,16 +80,27 @@ export function TaskTableView() {
 					/>
 				),
 			},
-			{
-				key: "deadline",
-				label: "Deadline",
-				thClassName: "w-28",
+		{
+			key: "deadline",
+			label: "Deadline",
+			thClassName: "w-40",
 				cellClassName: "px-2 py-2 text-gray-600",
 				compare: (a, b) =>
 					(a.resolvedDeadline?.getTime() ?? Infinity) -
 					(b.resolvedDeadline?.getTime() ?? Infinity),
 			render: (r) =>
 				r.resolvedDeadline ? formatDateTime(r.resolvedDeadline) : r.task.deadline || "—",
+			},
+			{
+				key: "start_date",
+				label: "Start",
+				thClassName: "w-40",
+				cellClassName: "px-2 py-2 text-gray-600",
+				compare: (a, b) =>
+					(a.resolvedStartDate?.getTime() ?? Infinity) -
+					(b.resolvedStartDate?.getTime() ?? Infinity),
+				render: (r) =>
+					r.resolvedStartDate ? formatDateTime(r.resolvedStartDate) : r.task.start_date || "—",
 			},
 			{
 				key: "assignee",
@@ -170,6 +183,12 @@ export function TaskTableView() {
 		[helperMap, updateTask],
   );
 
+  /** Group key extractors for visual day separation — one per date sort column */
+  const separatorGroupKeys = useMemo(() => ({
+    deadline: (r: TaskRow) => r.resolvedDeadline ? formatDate(r.resolvedDeadline) : null,
+    start_date: (r: TaskRow) => r.resolvedStartDate ? formatDate(r.resolvedStartDate) : null,
+  }), []);
+
   const selectedTask = selectedTaskId
     ? project.tasks.find((t) => t.id === selectedTaskId) ?? null
     : null;
@@ -187,6 +206,7 @@ export function TaskTableView() {
         selectedRowKey={selectedTaskId}
         onRowClick={(r) => selectTask(r.task.id === selectedTaskId ? null : r.task.id)}
         emptyMessage="No tasks match the current filters"
+        separatorGroupKeys={separatorGroupKeys}
       />
     </ViewLayout>
   );

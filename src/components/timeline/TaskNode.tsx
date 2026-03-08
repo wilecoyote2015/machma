@@ -21,6 +21,11 @@ import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 const HANDLE_CLASS =
   "!w-3 !h-3 !bg-gray-300 !border-2 !border-white/60 hover:!bg-primary hover:!border-white transition-colors";
 
+/** Width of the horizontal T-bar at the deadline end (px) */
+const TBAR_WIDTH = 24;
+/** Thickness of the duration line and T-bar (px) */
+const DURATION_LINE_WIDTH = 2;
+
 function TaskNodeComponent({ data, selected }: NodeProps) {
   const {
     task,
@@ -30,6 +35,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
     hasUnansweredQuestions,
     assigneeName,
     assigneeColor,
+    deadlineOffsetY,
   } = data as TaskNodeData;
 
   const dateStr = resolvedDate ? formatDateTime(resolvedDate) : task.deadline || "no date";
@@ -68,6 +74,42 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
       )}
 
       <Handle type="source" position={Position.Bottom} className={HANDLE_CLASS} />
+
+      {/*
+       * Duration line: vertical line from node center to deadline Y with T-bar (box-plot style).
+       * Positioned from node top (y=0) to deadlineOffsetY pixels below, so the T-bar
+       * lands exactly at the deadline's Y position on the timeline.
+       */}
+      {deadlineOffsetY > 0 && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: NODE_WIDTH / 2 - DURATION_LINE_WIDTH / 2,
+            top: 0,
+            width: DURATION_LINE_WIDTH,
+            height: deadlineOffsetY,
+            zIndex: -1,
+          }}
+        >
+          {/* Vertical line */}
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: groupColor, opacity: 0.7 }}
+          />
+          {/* Horizontal T-bar at the deadline end */}
+          <div
+            className="absolute"
+            style={{
+              bottom: 0,
+              left: -(TBAR_WIDTH - DURATION_LINE_WIDTH) / 2,
+              width: TBAR_WIDTH,
+              height: DURATION_LINE_WIDTH,
+              backgroundColor: groupColor,
+              opacity: 0.7,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

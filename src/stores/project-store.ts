@@ -125,6 +125,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       title: id.replace(/_/g, " "),
       deadline: "",
       time: "",
+      start_date: "",
+      start_time: "",
       assignee: "",
       n_helpers_needed: 0,
       status: "todo",
