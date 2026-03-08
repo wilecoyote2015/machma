@@ -6,3 +6,4 @@
 - Add anchor date datetime filter preset buttons: exactlyu, up to 7 days before etc.
 - datetime picker like md date format yyyy/mm/dd
 - tasks table: maek deadline column a bit wider to fit time into same row
+- Add "role" field to helper data. Will be shown in table

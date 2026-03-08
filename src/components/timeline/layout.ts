@@ -529,15 +529,17 @@ export function computeLayout(
   const rangeDays = deadlineRangeDays(deadlineRange);
   const isDayView = rangeDays !== null && rangeDays <= HOURLY_TICK_THRESHOLD_DAYS;
 
-  // Resolve deadlines for ALL tasks (stable Y mapping and timeline axis)
+  // Resolve deadlines for ALL tasks (stable Y mapping and timeline axis).
+  // In normal mode, omit task.time so same-day tasks share a Y position.
+  // In day-view mode, include task.time for hourly Y resolution.
   const allDates = allTasks
-    .map((t) => resolveDeadline(t.deadline, anchorDate, t.time))
+    .map((t) => resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined))
     .filter((d): d is Date => d !== null);
 
   // Resolve deadlines for filtered tasks (visible nodes)
   const filteredResolved = filteredTasks.map((t) => ({
     task: t,
-    date: resolveDeadline(t.deadline, anchorDate, t.time),
+    date: resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined),
   }));
 
   // No dates across ALL tasks → fall back to simple vertical layout for filtered tasks
