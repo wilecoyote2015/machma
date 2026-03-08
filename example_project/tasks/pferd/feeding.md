@@ -5,7 +5,7 @@ n_helpers_needed: 10
 status: todo
 
 ## Depends On
-- put_things
+- new_task
 
 ## Tags
 - feeding
@@ -32,7 +32,7 @@ sa
 d
 sa
 
-sadfasdf 
+sadfasdf
 
 sdsf
 

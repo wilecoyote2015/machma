@@ -1,11 +1,11 @@
 # test task 2
-deadline:   
+deadline: -4d  
 assignee:   
 n_helpers_needed: 0  
 status: todo
 
 ## Depends On
-- feeding
+- put_things
 
 ## Tags
 

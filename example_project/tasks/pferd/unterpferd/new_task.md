@@ -1,10 +1,11 @@
 # new task
-deadline:   
+deadline: -4d  
 assignee:   
 n_helpers_needed: 0  
-status: todo
+status: in_progress
 
 ## Depends On
+- test_task_2
 
 ## Tags
 
