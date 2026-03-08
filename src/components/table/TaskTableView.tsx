@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import type { Task } from "@/types";
+import type { Task, TaskStatus } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
 import { resolveDeadline, formatDate } from "@/lib/dates";
@@ -14,7 +14,7 @@ import { ViewLayout } from "@/components/common/ViewLayout";
 import { SortableTable, type Column } from "@/components/common/SortableTable";
 import { FilterPanel } from "@/components/filters/FilterPanel";
 import { TaskDetail } from "@/components/detail/TaskDetail";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { statusBorderClass } from "@/components/ui/StatusBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
 import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
@@ -56,99 +56,124 @@ export function TaskTableView() {
   }, [project.tasks, filters, anchorDate, groupColorMap]);
 
   const columns: Column<TaskRow>[] = useMemo(
-    () => [
-      {
-        key: "title",
-        label: "Title",
-        thClassName: "w-48",
-        cellClassName: "px-2 py-2 font-medium text-gray-800",
-        compare: (a, b) => a.task.title.localeCompare(b.task.title),
-        render: (r) => r.task.title,
-      },
-      {
-        key: "group",
-        label: "Group",
-        thClassName: "w-36",
-        compare: (a, b) => a.task.group.localeCompare(b.task.group),
-        render: (r) => (
-          <GroupBadge groupPath={r.task.group} color={r.groupColor} className="text-gray-600 text-xs" />
-        ),
-      },
-      {
-        key: "deadline",
-        label: "Deadline",
-        thClassName: "w-28",
-        cellClassName: "px-2 py-2 text-gray-600",
-        compare: (a, b) =>
-          (a.resolvedDeadline?.getTime() ?? Infinity) - (b.resolvedDeadline?.getTime() ?? Infinity),
-        render: (r) =>
-          r.resolvedDeadline ? formatDate(r.resolvedDeadline) : r.task.deadline || "—",
-      },
-      {
-        key: "assignee",
-        label: "Assignee",
-        thClassName: "w-28",
-        compare: (a, b) => {
-          const nameA = helperMap[a.task.assignee]?.name ?? a.task.assignee;
-          const nameB = helperMap[b.task.assignee]?.name ?? b.task.assignee;
-          return nameA.localeCompare(nameB);
-        },
-        render: (r) => (
-          <select
-            value={r.task.assignee}
-            onChange={(e) => {
-              e.stopPropagation();
-              updateTask({ ...r.task, assignee: e.target.value });
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="input-light w-full text-xs"
-          >
-            <option value="">—</option>
-            {Object.entries(helperMap).map(([id, helper]) => (
-              <option key={id} value={id}>
-                {getInitials(helper.name)}
-              </option>
-            ))}
-          </select>
-        ),
-      },
-      {
-        key: "helpers",
-        label: "Helpers",
-        thClassName: "w-20",
-        cellClassName: "px-2 py-2 text-gray-600",
-        compare: (a, b) => a.task.helpers.length - b.task.helpers.length,
-        render: (r) => `${r.task.helpers.length}/${r.task.n_helpers_needed}`,
-      },
-      {
-        key: "status",
-        label: "Status",
-        thClassName: "w-28",
-        compare: (a, b) => a.task.status.localeCompare(b.task.status),
-        render: (r) => <StatusBadge status={r.task.status} />,
-      },
-      {
-        key: "issues",
-        label: "Issues",
-        thClassName: "w-16",
-        cellClassName: "px-1 py-2 text-center",
-        render: (r) => (r.hasUnresolvedIssues ? <IssueIndicator /> : null),
-      },
-      {
-        key: "questions",
-        label: "Questions",
-        thClassName: "w-20",
-        cellClassName: "px-1 py-2 text-center",
-        render: (r) => (r.hasUnansweredQuestions ? <QuestionIndicator /> : null),
-      },
-      {
-        key: "description",
-        label: "Description",
-        cellClassName: "max-w-0 truncate px-2 py-2 text-gray-500",
-        render: (r) => r.task.description || "—",
-      },
-    ],
-    [helperMap, updateTask],
+		() => [
+			{
+				key: "title",
+				label: "Title",
+				thClassName: "w-48",
+				cellClassName: "px-2 py-2 font-medium text-gray-800",
+				compare: (a, b) => a.task.title.localeCompare(b.task.title),
+				render: (r) => r.task.title,
+			},
+			{
+				key: "group",
+				label: "Group",
+				thClassName: "w-36",
+				compare: (a, b) => a.task.group.localeCompare(b.task.group),
+				render: (r) => (
+					<GroupBadge
+						groupPath={r.task.group}
+						color={r.groupColor}
+						className="text-gray-600 text-xs"
+					/>
+				),
+			},
+			{
+				key: "deadline",
+				label: "Deadline",
+				thClassName: "w-28",
+				cellClassName: "px-2 py-2 text-gray-600",
+				compare: (a, b) =>
+					(a.resolvedDeadline?.getTime() ?? Infinity) -
+					(b.resolvedDeadline?.getTime() ?? Infinity),
+				render: (r) =>
+					r.resolvedDeadline ? formatDate(r.resolvedDeadline) : r.task.deadline || "—",
+			},
+			{
+				key: "assignee",
+				label: "Assignee",
+				thClassName: "w-28",
+				compare: (a, b) => {
+					const nameA = helperMap[a.task.assignee]?.name ?? a.task.assignee;
+					const nameB = helperMap[b.task.assignee]?.name ?? b.task.assignee;
+					return nameA.localeCompare(nameB);
+				},
+				render: (r) => (
+					<select
+						value={r.task.assignee}
+						onChange={(e) => {
+							e.stopPropagation();
+							updateTask({ ...r.task, assignee: e.target.value });
+						}}
+						onClick={(e) => e.stopPropagation()}
+						className={`w-full rounded px-1.5 py-0.5 text-xs  ${statusBorderClass(r.task.status)}`}>
+						<option value="">—</option>
+						{Object.entries(helperMap).map(([id, helper]) => (
+							<option
+								key={id}
+								value={id}>
+								{getInitials(helper.name)}
+							</option>
+						))}
+					</select>
+				),
+			},
+			{
+				key: "helpers",
+				label: "Helpers",
+				thClassName: "w-20",
+				cellClassName: "px-2 py-2 text-gray-600",
+				compare: (a, b) => a.task.helpers.length - b.task.helpers.length,
+				render: (r) => `${r.task.helpers.length}/${r.task.n_helpers_needed}`,
+			},
+			{
+				key: "status",
+				label: "Status",
+				thClassName: "w-28",
+				compare: (a, b) => a.task.status.localeCompare(b.task.status),
+				render: (r) => (
+					<select
+						value={r.task.status}
+						onChange={(e) => {
+							e.stopPropagation();
+							updateTask({ ...r.task, status: e.target.value as TaskStatus });
+						}}
+						onClick={(e) => e.stopPropagation()}
+						className={`w-full rounded px-1.5 py-0.5 text-xs  ${statusBorderClass(r.task.status)}`}>
+						{(["todo", "in_progress", "finished", "cancelled"] as TaskStatus[]).map(
+							(s) => (
+								<option
+									key={s}
+									value={s}>
+									{s.replace("_", " ")}
+								</option>
+							),
+						)}
+					</select>
+				),
+			},
+			{
+				key: "issues",
+				label: "Issues",
+				thClassName: "w-16",
+				cellClassName: "px-1 py-2 text-center",
+				render: (r) => (r.hasUnresolvedIssues ? <IssueIndicator /> : null),
+			},
+			{
+				key: "questions",
+				label: "Questions",
+				thClassName: "w-20",
+				cellClassName: "px-1 py-2 text-center",
+				render: (r) => (r.hasUnansweredQuestions ? <QuestionIndicator /> : null),
+			},
+			{
+				key: "description",
+				label: "Description",
+				cellClassName: "max-w-0 truncate px-2 py-2 text-gray-500",
+				render: (r) => r.task.description || "—",
+			},
+		],
+		[helperMap, updateTask],
   );
 
   const selectedTask = selectedTaskId
