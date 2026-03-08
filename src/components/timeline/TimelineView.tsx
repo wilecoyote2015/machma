@@ -9,17 +9,20 @@
  * - Dependency edges are colored by the source task's status.
  */
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useRef } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   applyEdgeChanges,
+  applyNodeChanges,
   type NodeMouseHandler,
   type NodeTypes,
+  type Node,
   type Edge,
   type EdgeChange,
+  type NodeChange,
   type Connection,
 } from "@xyflow/react";
 import { useProjectStore } from "@/stores/project-store";
@@ -27,6 +30,14 @@ import { computeLayout } from "./layout";
 import { TaskNode } from "./TaskNode";
 import { TimelineTickNode } from "./TimelineTickNode";
 import { applyFilters } from "@/lib/filters";
+import {
+  resolveDeadline,
+  resolveStartDate,
+  formatDate,
+  formatTime,
+  snapToDay,
+  snapTo15Min,
+} from "@/lib/dates";
 import { DEFAULT_GROUP_COLOR, EDGE_COLOR } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
 import { FilterPanel } from "@/components/filters/FilterPanel";
@@ -58,7 +69,7 @@ export function TimelineView() {
     [filters.deadlineStart, filters.deadlineEnd],
   );
 
-  const { nodes, edges: computedEdges } = useMemo(
+  const { nodes: layoutNodes, edges: computedEdges, yToTime, isDayView } = useMemo(
     () =>
       computeLayout(
         filteredTasks,
@@ -85,6 +96,40 @@ export function TimelineView() {
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
+  }, []);
+
+  // ── Controlled node state for vertical-only dragging ──────────────
+  // Internal node state mirrors layout nodes but allows Y-axis dragging.
+  // Synced from layout on recompute; drag changes constrain X to layout position.
+  const [nodes, setNodes] = useState<Node[]>(layoutNodes);
+  const [prevLayoutNodes, setPrevLayoutNodes] = useState(layoutNodes);
+
+  if (layoutNodes !== prevLayoutNodes) {
+    setNodes(layoutNodes);
+    setPrevLayoutNodes(layoutNodes);
+  }
+
+  /** Tracks the layout-computed X position per node for Y-only drag constraint. */
+  const layoutXRef = useRef<Map<string, number>>(new Map());
+  if (layoutNodes !== prevLayoutNodes || layoutXRef.current.size === 0) {
+    const xMap = new Map<string, number>();
+    for (const n of layoutNodes) xMap.set(n.id, n.position.x);
+    layoutXRef.current = xMap;
+  }
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const xMap = layoutXRef.current;
+    const constrained = changes.map((change) => {
+      // Lock X coordinate during drag so nodes only move vertically
+      if (change.type === "position" && change.position && !change.id.startsWith("__tick_")) {
+        const layoutX = xMap.get(change.id);
+        if (layoutX !== undefined) {
+          return { ...change, position: { ...change.position, x: layoutX } };
+        }
+      }
+      return change;
+    });
+    setNodes((nds) => applyNodeChanges(constrained, nds));
   }, []);
 
   // ── Selection emphasis ─────────────────────────────────────────────
@@ -166,12 +211,70 @@ export function TimelineView() {
     [project.tasks, updateTask],
   );
 
+  // ── Node drag-to-set-date ─────────────────────────────────────────
+  // When a task node is dropped at a new Y position, compute the
+  // corresponding date (snapping to days or 15-min depending on mode)
+  // and update the task's start/deadline accordingly.
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.id.startsWith("__tick_")) return;
+
+      const task = project.tasks.find((t) => t.id === node.id);
+      if (!task) return;
+
+      const anchor = project.meta.anchor_date;
+      const hasStart = task.start_date.trim() !== "" || task.start_time.trim() !== "";
+
+      // Resolve current positions to compute duration
+      const currentStart = resolveStartDate(
+        task.start_date, task.start_time, task.deadline, anchor,
+        isDayView ? task.start_time : undefined,
+      );
+      const currentDeadline = resolveDeadline(
+        task.deadline, anchor, isDayView ? task.time : undefined,
+      );
+
+      let durationMs = 0;
+      if (hasStart && currentStart && currentDeadline) {
+        durationMs = currentDeadline.getTime() - currentStart.getTime();
+      }
+
+      // Convert drop Y → timestamp → snapped date
+      const rawTime = yToTime(node.position.y);
+      const snapped = isDayView ? snapTo15Min(rawTime) : snapToDay(rawTime);
+
+      const updated = { ...task };
+
+      if (hasStart) {
+        // Task has a start date/time: move start, deadline follows to preserve duration
+        updated.start_date = formatDate(snapped);
+        const newDeadline = new Date(snapped.getTime() + durationMs);
+        updated.deadline = formatDate(newDeadline);
+        if (isDayView) {
+          updated.start_time = formatTime(snapped);
+          updated.time = formatTime(newDeadline);
+        }
+      } else {
+        // No start date: just move the deadline
+        updated.deadline = formatDate(snapped);
+        if (isDayView) {
+          updated.time = formatTime(snapped);
+        }
+      }
+
+      updateTask(updated);
+    },
+    [project.tasks, project.meta.anchor_date, isDayView, yToTime, updateTask],
+  );
+
   // ── Node selection ─────────────────────────────────────────────────
   const nodesWithSelection = useMemo(
     () =>
       nodes.map((n) => ({
         ...n,
         selected: !n.id.startsWith("__tick_") && n.id === selectedTaskId,
+        // Tick nodes are never draggable; task nodes support vertical drag
+        draggable: !n.id.startsWith("__tick_"),
       })),
     [nodes, selectedTaskId],
   );
@@ -204,7 +307,9 @@ export function TimelineView() {
           nodes={nodesWithSelection}
           edges={displayEdges}
           nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
+          onNodeDragStop={onNodeDragStop}
           onEdgesChange={onEdgesChange}
           onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}

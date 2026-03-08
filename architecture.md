@@ -56,7 +56,7 @@ src/
 │   ├── project-loader.ts             # Reads entire project directory into Project model
 │   ├── watcher.ts                    # Timestamp snapshot diffing for external change detection
 │   ├── filters.ts                    # Shared task filtering logic (used by timeline + table)
-│   └── dates.ts                      # Date resolution (relative/absolute) and formatting (YYYY-MM-DD)
+│   └── dates.ts                      # Date resolution, start-date refinement, formatting, snap helpers
 │
 ├── hooks/
 │   └── useFileWatcher.ts             # React hook: polls for external file changes every 3s
@@ -160,7 +160,14 @@ Both operations persist immediately to disk via `updateTask` in the Zustand stor
 
 **Task time-of-day:** Each task has an optional `time` field (HH:MM). When set, `resolveDeadline` applies it to the resolved date, giving tasks with different times distinct timestamps and thus distinct Y positions on the timeline — particularly visible in day-view mode.
 
-**Start date → deadline duration lines:** Each task has optional `start_date` and `start_time` fields. When `start_date` is set, the task node is positioned at the start date's Y position instead of the deadline. A vertical line extends from the node downward to the deadline Y position, terminating in a horizontal T-bar (box-plot style). This makes the task's time span visually apparent. The duration line is rendered as an absolutely-positioned overlay within the `TaskNode` component using a `deadlineOffsetY` value computed in `layout.ts`. Both start dates and deadlines feed into the Y mapper so the axis covers the full range.
+**Start date/time refinement (rendering-only):** `resolveStartDate()` in `lib/dates.ts` applies implicit defaults at rendering time without modifying the .md files:
+- If `start_time` is set but `start_date` is not → the deadline's date is used as the start date (same day). In day-view mode the start_time is applied for hourly positioning.
+- If `start_date` is set but `start_time` is not → 00:00 is assumed (already the default behaviour of `resolveDeadline`).
+These rules are purely for layout/display; the .md data model is unaffected, and omitting either field remains valid.
+
+**Start date → deadline duration lines:** Each task has optional `start_date` and `start_time` fields. When a start date can be resolved (explicitly set, or implied via the refinement above), the task node is positioned at the start date's Y position instead of the deadline. A vertical line extends from the node downward to the deadline Y position, terminating in a horizontal T-bar (box-plot style). This makes the task's time span visually apparent. The duration line is rendered as an absolutely-positioned overlay within the `TaskNode` component using a `deadlineOffsetY` value computed in `layout.ts`. Both start dates and deadlines feed into the Y mapper so the axis covers the full range.
+
+**Vertical drag-to-set-date:** Task nodes on the timeline are vertically draggable (X is locked to the layout position). Dropping a node converts its Y position back to a date via the inverse Y mapper (`yToTime` — built from the same piecewise-linear control points as the forward `timeToY`, ensuring perfect consistency). The date is snapped to the nearest **day** in normal view or to the nearest **15-minute** boundary in day-view mode. For tasks with a start date/time, dragging sets the start date/time and shifts the deadline by the same amount, preserving the task's duration. For tasks without a start date, dragging directly moves the deadline. Dragging always converts relative deadlines (e.g. `"-5d"`) to absolute dates — the user is explicitly overriding the schedule. Snap utilities (`snapToDay`, `snapTo15Min`) and `formatTime` live in `lib/dates.ts`.
 
 **Dangling edge prevention:** `buildDependencyEdges` only creates edges when both the source and target task exist in the current (potentially filtered) task set. This prevents React Flow from receiving edges referencing non-existent nodes.
 
@@ -242,7 +249,7 @@ The color is editable via a native color picker in the Helpers view (`EditableRe
 
 ### Centralized Date Formatting (DRY)
 
-All date display uses a single `formatDate(date)` → `YYYY-MM-DD` function in `lib/dates.ts`. This is the canonical format across the entire application: display strings, `<input type="date">` bindings, timeline tick labels, and filter preset calculations all use `formatDate` — eliminating previously scattered inline date formatting. `formatDateTime` extends this with ` HH:MM` for non-midnight times.
+All date display uses a single `formatDate(date)` → `YYYY-MM-DD` function in `lib/dates.ts`. This is the canonical format across the entire application: display strings, `<input type="date">` bindings, timeline tick labels, and filter preset calculations all use `formatDate` — eliminating previously scattered inline date formatting. `formatDateTime` extends this with ` HH:MM` for non-midnight times. `formatTime` formats only the HH:MM component (used when drag-and-drop sets time fields in day-view mode). `resolveStartDate` applies rendering-time refinement for start dates (see Smart Timeline Layout above). `snapToDay` and `snapTo15Min` quantize timestamps for drag snapping.
 
 ### Centralized Constants (DRY)
 

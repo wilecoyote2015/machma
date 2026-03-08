@@ -40,6 +40,9 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
 
   const dateStr = resolvedDate ? formatDateTime(resolvedDate) : task.deadline || "no date";
   const borderClass = statusBorderClass(task.status);
+  // TODO: use the tailwind primary color if selected to be consistent with theme
+  const verticalLineColor = selected ? "red" : groupColor;
+  const verticalLineOpacity = selected ? 1 : 0.7;
 
   return (
     <div
@@ -94,7 +97,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
           {/* Vertical line */}
           <div
             className="absolute inset-0"
-            style={{ backgroundColor: groupColor, opacity: 0.7 }}
+            style={{ backgroundColor: verticalLineColor, opacity: verticalLineOpacity }}
           />
           {/* Horizontal T-bar at the deadline end */}
           <div
@@ -104,8 +107,8 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
               left: -(TBAR_WIDTH - DURATION_LINE_WIDTH) / 2,
               width: TBAR_WIDTH,
               height: DURATION_LINE_WIDTH,
-              backgroundColor: groupColor,
-              opacity: 0.7,
+              backgroundColor: verticalLineColor,
+              opacity: verticalLineOpacity,
             }}
           />
         </div>

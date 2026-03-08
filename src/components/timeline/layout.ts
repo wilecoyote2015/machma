@@ -19,7 +19,7 @@
 
 import { MarkerType, type Node, type Edge } from "@xyflow/react";
 import type { Task, TaskGroup } from "@/types";
-import { resolveDeadline, formatDate } from "@/lib/dates";
+import { resolveDeadline, resolveStartDate, formatDate } from "@/lib/dates";
 import { DEFAULT_GROUP_COLOR, AXIS_COLOR, EDGE_COLOR } from "@/lib/constants";
 import { getInitials } from "@/lib/format";
 
@@ -171,6 +171,14 @@ function formatHourlyTickLabel(date: Date): string {
 
 /* ── Y-axis mapping ──────────────────────────────────────────────── */
 
+/** Paired forward + inverse Y-axis mappers built from the same control points. */
+interface YMapper {
+  /** Convert a timestamp (ms) to a Y pixel position. */
+  timeToY: (time: number) => number;
+  /** Convert a Y pixel position back to a timestamp (ms). Inverse of timeToY. */
+  yToTime: (y: number) => number;
+}
+
 /**
  * Build a smart Y-position mapper that dynamically scales based on task density.
  *
@@ -178,6 +186,10 @@ function formatHourlyTickLabel(date: Date): string {
  * task dates and push any that are too close (< MIN_NODE_SPACING) further apart.
  * The result is a piecewise-linear mapping stored as (time, y) control points.
  * Timeline ticks are placed using the same mapping so they stay aligned.
+ *
+ * Returns both the forward (time→Y) and inverse (Y→time) functions, sharing
+ * the same control points so drag-to-date conversion is perfectly consistent
+ * with the rendered positions.
  *
  * @param pixelsPerDay - Base linear scale before density adjustment.
  *   Higher values give finer Y resolution (used for day-view mode).
@@ -187,10 +199,13 @@ function buildYMapper(
   minTime: number,
   maxTime: number,
   pixelsPerDay: number = BASE_PIXELS_PER_DAY,
-) {
+): YMapper {
   const rangeDays = (maxTime - minTime) / MS_PER_DAY;
   if (rangeDays === 0) {
-    return (_time: number) => 0;
+    return {
+      timeToY: () => 0,
+      yToTime: () => minTime,
+    };
   }
 
   const sorted = [...new Set(taskDates.map((d) => d.getTime()))].sort(
@@ -209,11 +224,15 @@ function buildYMapper(
   }
 
   if (points.length === 0) {
-    return (time: number) =>
+    const linearScale = (time: number) =>
       ((time - minTime) / MS_PER_DAY) * pixelsPerDay;
+    const inverseScale = (y: number) =>
+      minTime + (y / pixelsPerDay) * MS_PER_DAY;
+    return { timeToY: linearScale, yToTime: inverseScale };
   }
 
-  return (time: number): number => {
+  // ── Forward: time → Y ───────────────────────────────────────────
+  const timeToY = (time: number): number => {
     if (time <= points[0]!.time) {
       const ratio =
         points[0]!.time === minTime
@@ -235,6 +254,31 @@ function buildYMapper(
     }
     return 0;
   };
+
+  // ── Inverse: Y → time ──────────────────────────────────────────
+  const yToTime = (y: number): number => {
+    if (y <= points[0]!.y) {
+      if (points[0]!.y === 0) return points[0]!.time;
+      const ratio = (points[0]!.time - minTime) / points[0]!.y;
+      return minTime + y * ratio;
+    }
+    if (y >= points[points.length - 1]!.y) {
+      const last = points[points.length - 1]!;
+      return last.time + ((y - last.y) / pixelsPerDay) * MS_PER_DAY;
+    }
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i]!;
+      const b = points[i + 1]!;
+      if (y >= a.y && y <= b.y) {
+        const span = b.y - a.y;
+        const t = span === 0 ? 0 : (y - a.y) / span;
+        return a.time + t * (b.time - a.time);
+      }
+    }
+    return minTime;
+  };
+
+  return { timeToY, yToTime };
 }
 
 /* ── Group ordering ──────────────────────────────────────────────── */
@@ -499,6 +543,16 @@ export interface DeadlineRange {
   end: string | null;
 }
 
+/** Full result of computeLayout, including layout metadata for drag support. */
+export interface LayoutResult {
+  nodes: Node[];
+  edges: Edge[];
+  /** Inverse Y mapper: pixel Y → timestamp (ms). Used for drag-to-date conversion. */
+  yToTime: (y: number) => number;
+  /** Whether the layout is in day-view mode (hourly ticks, 15-min drag snap). */
+  isDayView: boolean;
+}
+
 /**
  * Determine if the deadline filter range is short enough for day-view mode.
  * Returns the range in days, or null if the range is open-ended.
@@ -529,7 +583,7 @@ export function computeLayout(
   anchorDate: string,
   helpers: Record<string, { name: string; color?: string }>,
   deadlineRange?: DeadlineRange,
-): { nodes: Node[]; edges: Edge[] } {
+): LayoutResult {
   const groupColorMap = new Map(groups.map((g) => [g.path, g.meta.color]));
 
   // Detect day-view mode: filter range ≤ 2 days
@@ -540,20 +594,32 @@ export function computeLayout(
   // Include both deadlines and start dates so the Y mapper covers the full range.
   // In normal mode, omit time so same-day tasks share a Y position.
   // In day-view mode, include time for hourly Y resolution.
+  // Start dates use resolveStartDate which applies the "start_time without
+  // start_date" refinement (rendering-only, never persisted to .md files).
   const allDates: Date[] = [];
   for (const t of allTasks) {
     const dl = resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined);
     if (dl) allDates.push(dl);
-    const sd = resolveDeadline(t.start_date, anchorDate, isDayView ? t.start_time : undefined);
+    const sd = resolveStartDate(
+      t.start_date, t.start_time, t.deadline, anchorDate,
+      isDayView ? t.start_time : undefined,
+    );
     if (sd) allDates.push(sd);
   }
 
-  // Resolve both start date and deadline for filtered tasks (visible nodes)
+  // Resolve both start date and deadline for filtered tasks (visible nodes).
+  // resolveStartDate handles the "start_time without start_date" refinement.
   const filteredResolved = filteredTasks.map((t) => ({
     task: t,
-    startDate: resolveDeadline(t.start_date, anchorDate, isDayView ? t.start_time : undefined),
+    startDate: resolveStartDate(
+      t.start_date, t.start_time, t.deadline, anchorDate,
+      isDayView ? t.start_time : undefined,
+    ),
     deadlineDate: resolveDeadline(t.deadline, anchorDate, isDayView ? t.time : undefined),
   }));
+
+  // Identity inverse for degenerate cases (no meaningful Y mapping)
+  const identityYToTime = (_y: number) => Date.now();
 
   // No dates across ALL tasks → fall back to simple vertical layout for filtered tasks
   if (allDates.length === 0 && filteredTasks.length > 0) {
@@ -563,10 +629,10 @@ export function computeLayout(
       position: { x: NODES_START_X, y: i * 100 },
       data: buildTaskNodeData(task, groupColorMap, helpers, anchorDate, 0),
     }));
-    return { nodes, edges: buildDependencyEdges(filteredTasks) };
+    return { nodes, edges: buildDependencyEdges(filteredTasks), yToTime: identityYToTime, isDayView };
   }
 
-  if (allDates.length === 0) return { nodes: [], edges: [] };
+  if (allDates.length === 0) return { nodes: [], edges: [], yToTime: identityYToTime, isDayView };
 
   // ── Choose axis range and scale ───────────────────────────────────
   let minDate: Date;
@@ -598,7 +664,8 @@ export function computeLayout(
         .filter((d): d is Date => d !== null)
     : allDates;
 
-  const timeToY = buildYMapper(yMapperDates, minTime, maxTime, effectivePixelsPerDay);
+  const yMapper = buildYMapper(yMapperDates, minTime, maxTime, effectivePixelsPerDay);
+  const { timeToY, yToTime } = yMapper;
   const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
   // ── Build placements for filtered tasks only ──────────────────────
@@ -694,6 +761,8 @@ export function computeLayout(
   return {
     nodes: [...tickNodes, ...taskNodes],
     edges: [...tickEdges, ...buildDependencyEdges(filteredTasks)],
+    yToTime,
+    isDayView,
   };
 }
 
