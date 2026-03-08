@@ -35,7 +35,7 @@ npx serve dist
 
 ![UI Mockup](docs/main.png)
 
-The app has six views, accessible via the top navigation bar:
+The app has seven views, accessible via the top navigation bar:
 
 ### Timeline
 A React Flow canvas showing tasks as nodes positioned on a vertical date axis. Each node is colored by its group, shows the task title, resolved deadline, assignee initials, and indicators for unresolved issues (red dot) and unanswered questions (orange "?"). Dependency arrows connect tasks — colored by the parent task's status (yellow = in progress, green = finished, red = cancelled, gray = todo) so you can instantly see which blockers are resolved. A left filter panel and right detail panel can be opened/closed. Groups are ordered horizontally by dependency connectivity (connected groups are placed adjacent), and tasks within the same group automatically spread into sub-lanes when they share similar deadlines, preventing overlap while keeping related dependency chains vertically aligned.
@@ -50,6 +50,9 @@ A flat sortable table of all issues across all tasks. Each row represents one is
 
 ### Questions
 A flat sortable table of all questions across all tasks. Each row represents one question, with columns: name, task (parent), group, deadline, task assignee, status (answered/unanswered), answer (truncated), and task description. The filter panel can filter by question status (answered/unanswered/both), task assignee, task group, and task deadline proximity. Clicking a row opens the question detail panel (not the full task). From the question detail panel, clicking the task name opens the full task detail in-place with a back button to return.
+
+### Helper List
+A task-centric view for managing helper assignments. Shows all tasks that require helpers as individual cards, sorted by deadline. Each card displays the task header (group, title, deadline, status, and a green/amber fill indicator showing assigned vs. required helpers). Below the header, an editable "required helpers" field and a table of assigned helpers (with remove buttons) allow quick management. A dropdown adds unassigned helpers. Clicking a task card header opens the task detail panel. The shared filter panel (groups, deadline, status, tags, etc.) applies to the task list.
 
 ### Helpers
 Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, email, phone, and address.

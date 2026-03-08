@@ -16,14 +16,14 @@ interface ProjectStore {
   dirHandle: FileSystemDirectoryHandle | null;
   project: Project | null;
   selectedTaskId: string | null;
-  activeView: "timeline" | "table" | "issues" | "questions" | "helpers" | "entities";
+  activeView: "timeline" | "table" | "issues" | "questions" | "helperlist" | "helpers" | "entities";
   filters: FilterState;
 
   // ── Actions ──────────────────────────────────────────────
   openProject: () => Promise<void>;
   reloadProject: () => Promise<void>;
   selectTask: (taskId: string | null) => void;
-  setActiveView: (view: "timeline" | "table" | "issues" | "questions" | "helpers" | "entities") => void;
+  setActiveView: (view: "timeline" | "table" | "issues" | "questions" | "helperlist" | "helpers" | "entities") => void;
 
   updateTask: (task: Task) => Promise<void>;
   addTask: (group: string, id: string) => Promise<void>;

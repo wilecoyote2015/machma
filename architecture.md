@@ -73,6 +73,7 @@ src/
 │   │   ├── AddTaskDialog.tsx         # Modal: create new task (group + ID, with "New group…" option)
 │   │   ├── CreateGroupDialog.tsx     # Modal: create new group (name, parent, color)
 │   │   ├── HelpersView.tsx           # Thin wrapper around EditableRecordTable for helpers.json
+│   │   │                            #   (manages helper people records, NOT task assignments)
 │   │   └── EntitiesView.tsx          # Thin wrapper around EditableRecordTable for external_entities.json
 │   │
 │   ├── ui/                           # Small reusable UI primitives
@@ -108,7 +109,8 @@ src/
 │   └── table/
 │       ├── TaskTableView.tsx         # Tasks table: column defs + SortableTable + ViewLayout
 │       ├── IssueTableView.tsx        # Issues table: flatten + filter + SortableTable + ViewLayout
-│       └── QuestionTableView.tsx     # Questions table: flatten + filter + SortableTable + ViewLayout
+│       ├── QuestionTableView.tsx     # Questions table: flatten + filter + SortableTable + ViewLayout
+│       └── HelperListView.tsx        # Helper list: per-task helper management cards + ViewLayout
 ```
 
 ## Key Design Decisions
@@ -176,6 +178,17 @@ The issue and question detail panels share **`ItemDetailShell`**, which provides
 
 The Issues and Questions views flatten all issues/questions from all tasks into a single sortable table using `SortableTable`. Each row represents one issue or question, joined with its parent task's metadata (group, deadline, assignee). Filtering is applied during the flattening step for efficiency. Filter and selection state are managed locally within each view component (not in the global store), since these filters are view-specific and not shared with other views.
 
+### Helper List View
+
+The Helper List view (`HelperListView`) provides a task-centric view of helper assignments. It shows all tasks that require helpers (`n_helpers_needed > 0` or `helpers.length > 0`) as individual cards, sorted by deadline. Each card contains:
+
+- **Clickable header**: group badge, task title, deadline, status badge, and a fill indicator (`assigned/required`) that turns green when fulfilled, amber when under-staffed.
+- **Required helpers input**: inline-editable number field to set `n_helpers_needed`.
+- **Helper table**: one row per assigned helper (ID badge + resolved name from `helpers.json`), with a remove button.
+- **Add helper dropdown**: shows unassigned helpers; selecting one immediately adds it to the task.
+
+The view reuses `ViewLayout` with the shared `FilterPanel` (global filters apply to the task list) and opens `TaskDetail` in the right panel when a task card header is clicked. All helper mutations go through `updateTask` in the Zustand store, persisting to disk immediately.
+
 ### Responsive Design
 
 ViewLayout handles responsive breakpoints:
@@ -201,7 +214,7 @@ A single Zustand store (`project-store.ts`) holds:
 - `dirHandle`: the open directory handle
 - `project`: the full parsed Project model (tasks, groups, helpers, entities)
 - `selectedTaskId`: currently selected task
-- `activeView`: which tab is shown (timeline, table, issues, questions, helpers, entities)
+- `activeView`: which tab is shown (timeline, table, issues, questions, helperlist, helpers, entities)
 - `filters`: all filter state (tags, groups, helpers, statuses, flags, deadline proximity)
 - Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles, `saveHelpers`, `saveExternalEntities`
 

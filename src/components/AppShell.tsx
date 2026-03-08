@@ -9,17 +9,19 @@ import { TimelineView } from "@/components/timeline/TimelineView";
 import { TaskTableView } from "@/components/table/TaskTableView";
 import { IssueTableView } from "@/components/table/IssueTableView";
 import { QuestionTableView } from "@/components/table/QuestionTableView";
+import { HelperListView } from "@/components/table/HelperListView";
 import { HelpersView } from "@/components/common/HelpersView";
 import { EntitiesView } from "@/components/common/EntitiesView";
 import { AddTaskDialog } from "@/components/common/AddTaskDialog";
 
-type ActiveView = "timeline" | "table" | "issues" | "questions" | "helpers" | "entities";
+type ActiveView = "timeline" | "table" | "issues" | "questions" | "helperlist" | "helpers" | "entities";
 
 const NAV_ITEMS: { key: ActiveView; label: string }[] = [
   { key: "timeline", label: "Timeline" },
   { key: "table", label: "Tasks" },
   { key: "issues", label: "Issues" },
   { key: "questions", label: "Questions" },
+  { key: "helperlist", label: "Helper List" },
   { key: "helpers", label: "Helpers" },
   { key: "entities", label: "Entities" },
 ];
@@ -76,6 +78,7 @@ export function AppShell() {
         {activeView === "table" && <TaskTableView />}
         {activeView === "issues" && <IssueTableView />}
         {activeView === "questions" && <QuestionTableView />}
+        {activeView === "helperlist" && <HelperListView />}
         {activeView === "helpers" && <HelpersView />}
         {activeView === "entities" && <EntitiesView />}
       </div>
