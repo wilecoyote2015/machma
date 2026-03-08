@@ -1,6 +1,5 @@
 /**
- * Landing screen shown when no project is loaded.
- * Single button that triggers the OS directory picker.
+ * Landing screen when no project is loaded.
  */
 
 import { useState } from "react";
@@ -18,7 +17,7 @@ export function ProjectPicker() {
       await openProject();
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        // User cancelled the picker — ignore
+        // User cancelled
       } else {
         setError(e instanceof Error ? e.message : "Failed to open project");
       }
@@ -33,21 +32,12 @@ export function ProjectPicker() {
         <h1 className="mb-2 text-4xl font-bold text-gray-800">Machma</h1>
         <p className="mb-8 text-gray-500">Task management for events</p>
 
-        <button
-          onClick={handleOpen}
-          disabled={loading}
-          className="rounded-lg bg-orange-500 px-8 py-3 text-lg font-semibold text-white shadow-md transition hover:bg-orange-600 disabled:opacity-50"
-        >
+        <button onClick={handleOpen} disabled={loading} className="btn-primary px-8 py-3 text-lg disabled:opacity-50">
           {loading ? "Loading..." : "Open Project Folder"}
         </button>
 
-        {error && (
-          <p className="mt-4 text-sm text-red-600">{error}</p>
-        )}
-
-        <p className="mt-6 text-xs text-gray-400">
-          Select a directory containing project.json
-        </p>
+        {error && <p className="mt-4 text-sm text-issue">{error}</p>}
+        <p className="mt-6 text-xs text-gray-400">Select a directory containing project.json</p>
       </div>
     </div>
   );

@@ -14,9 +14,10 @@ import type {
 } from "@/types";
 import { readJsonFile, readTextFile, listDirectoryRecursive } from "@/lib/fs";
 import { parseTask } from "@/lib/parser";
+import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
 
 const DEFAULT_GROUP_META: GroupMeta = {
-  color: "#9CA3AF", // tailwind gray-400
+  color: DEFAULT_GROUP_COLOR,
   description: "",
 };
 

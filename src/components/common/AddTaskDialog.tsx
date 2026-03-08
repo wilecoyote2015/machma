@@ -1,6 +1,5 @@
 /**
- * Simple inline dialog for creating a new task.
- * User picks a group and enters a task ID (filename).
+ * Modal dialog for creating a new task.
  */
 
 import { useState } from "react";
@@ -20,18 +19,9 @@ export function AddTaskDialog({ onClose }: AddTaskDialogProps) {
 
   const handleCreate = async () => {
     const id = taskId.trim().toLowerCase().replace(/\s+/g, "_").replace(/\.md$/, "");
-    if (!id) {
-      setError("Task ID is required");
-      return;
-    }
-    if (project.tasks.some((t) => t.id === id)) {
-      setError("A task with this ID already exists");
-      return;
-    }
-    if (!group) {
-      setError("Please select a group");
-      return;
-    }
+    if (!id) { setError("Task ID is required"); return; }
+    if (project.tasks.some((t) => t.id === id)) { setError("A task with this ID already exists"); return; }
+    if (!group) { setError("Please select a group"); return; }
     await addTask(group, id);
     onClose();
   };
@@ -44,47 +34,29 @@ export function AddTaskDialog({ onClose }: AddTaskDialogProps) {
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-600">Group</label>
-            <select
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-orange-400 focus:outline-none"
-            >
+            <select value={group} onChange={(e) => setGroup(e.target.value)} className="input-light w-full">
               {project.groups.map((g) => (
                 <option key={g.path} value={g.path}>{g.name}</option>
               ))}
             </select>
           </div>
-
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-600">
-              Task ID (filename)
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-600">Task ID (filename)</label>
             <input
               value={taskId}
               onChange={(e) => { setTaskId(e.target.value); setError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="e.g. setup_stage"
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-orange-400 focus:outline-none"
+              className="input-light w-full"
               autoFocus
             />
           </div>
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-issue">{error}</p>}
         </div>
 
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded bg-gray-100 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            className="rounded bg-orange-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-600"
-          >
-            Create
-          </button>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleCreate} className="btn-primary">Create</button>
         </div>
       </div>
     </div>

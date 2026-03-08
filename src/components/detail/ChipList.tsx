@@ -1,6 +1,6 @@
 /**
- * An interactive chip list for managing string arrays (tags, helpers, dependencies, etc.).
- * Supports adding from suggestions or custom text, and removing individual items.
+ * Interactive chip list for managing string arrays (tags, helpers, dependencies).
+ * Designed for use on the dark panel background.
  */
 
 import { useState } from "react";
@@ -8,11 +8,8 @@ import { useState } from "react";
 interface ChipListProps {
   label: string;
   items: string[];
-  /** Available items to choose from when adding */
   suggestions?: string[];
-  /** Allow typing custom values (not just from suggestions) */
   allowCustom?: boolean;
-  /** Custom display label for an item ID */
   renderLabel?: (id: string) => string;
   onChange: (items: string[]) => void;
 }
@@ -55,7 +52,6 @@ export function ChipList({
         </button>
       </div>
 
-      {/* Chips */}
       <div className="flex flex-wrap gap-1">
         {items.map((item) => (
           <span
@@ -63,10 +59,7 @@ export function ChipList({
             className="inline-flex items-center gap-1 rounded bg-white/20 px-2 py-0.5 text-xs text-white"
           >
             {renderLabel ? renderLabel(item) : item}
-            <button
-              onClick={() => handleRemove(item)}
-              className="text-white/50 hover:text-red-300"
-            >
+            <button onClick={() => handleRemove(item)} className="text-white/50 hover:text-issue">
               ✕
             </button>
           </span>
@@ -76,7 +69,6 @@ export function ChipList({
         )}
       </div>
 
-      {/* Add input */}
       {adding && (
         <div className="mt-1">
           {allowCustom || availableSuggestions.length === 0 ? (
@@ -87,16 +79,14 @@ export function ChipList({
                 if (e.key === "Enter") handleAdd(inputValue);
                 if (e.key === "Escape") setAdding(false);
               }}
-              className="w-full rounded border border-white/30 bg-white/10 px-2 py-1 text-xs text-white placeholder-white/50 focus:border-white focus:outline-none"
+              className="input-panel w-full text-xs"
               placeholder="Type and press Enter..."
               autoFocus
             />
           ) : (
             <select
-              onChange={(e) => {
-                if (e.target.value) handleAdd(e.target.value);
-              }}
-              className="w-full rounded border border-white/30 bg-white/10 px-2 py-1 text-xs text-white focus:border-white focus:outline-none"
+              onChange={(e) => { if (e.target.value) handleAdd(e.target.value); }}
+              className="select-panel w-full text-xs"
               autoFocus
             >
               <option value="" className="text-black">Select...</option>

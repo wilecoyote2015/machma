@@ -1,11 +1,6 @@
 /**
- * Sortable task table view.
- *
- * Columns: title, deadline, assignee, helpers (assigned/needed), status,
- * group (with color indicator), unresolved issues icon, unanswered questions icon.
- *
- * Clicking a row selects the task and shows the detail panel.
- * Sorted by deadline by default; click column headers to change sort.
+ * Sortable task table view wrapped in ViewLayout.
+ * Shares the same filter panel and task detail panel as the timeline.
  */
 
 import { useMemo, useState } from "react";
@@ -13,6 +8,14 @@ import type { Task } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
 import { resolveDeadline, formatDate } from "@/lib/dates";
+import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
+import { ViewLayout } from "@/components/common/ViewLayout";
+import { FilterPanel } from "@/components/filters/FilterPanel";
+import { TaskDetail } from "@/components/detail/TaskDetail";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
+import { IssueIndicator } from "@/components/ui/IssueIndicator";
+import { QuestionIndicator } from "@/components/ui/QuestionIndicator";
 
 type SortKey = "title" | "deadline" | "assignee" | "helpers" | "status" | "group";
 type SortDir = "asc" | "desc";
@@ -46,7 +49,6 @@ export function TaskTableView() {
     [project.tasks, filters, anchorDate],
   );
 
-  // Sort tasks
   const sortedTasks = useMemo(() => {
     const compare = (a: Task, b: Task): number => {
       switch (sortKey) {
@@ -80,120 +82,81 @@ export function TaskTableView() {
     }
   };
 
+  const selectedTask = selectedTaskId
+    ? project.tasks.find((t) => t.id === selectedTaskId) ?? null
+    : null;
+
   return (
-    <div className="h-full overflow-auto p-4">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b-2 border-gray-200">
-            {COLUMNS.map((col) => (
-              <th
-                key={col.key}
-                onClick={() => handleSort(col.key)}
-                className={`cursor-pointer px-2 py-2 font-semibold text-gray-600 hover:text-gray-800 ${col.className ?? ""}`}
-              >
-                {col.label}
-                {sortKey === col.key && (
-                  <span className="ml-1 text-xs">{sortDir === "asc" ? "▲" : "▼"}</span>
-                )}
-              </th>
-            ))}
-            {/* Icon columns (not sortable) */}
-            <th className="w-6 px-1 py-2" title="Unresolved issues">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-            </th>
-            <th className="w-6 px-1 py-2" title="Unanswered questions">
-              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-orange-400 text-[9px] font-bold text-white">?</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTasks.map((task) => {
-            const resolved = resolveDeadline(task.deadline, anchorDate);
-            const hasIssues = task.issues.some((i) => !i.assignee && !i.solution);
-            const hasQuestions = task.questions.some((q) => !q.answer.trim());
-            const isSelected = task.id === selectedTaskId;
-            const groupColor = groupColorMap.get(task.group) ?? "#9CA3AF";
-
-            return (
-              <tr
-                key={task.id}
-                onClick={() => selectTask(isSelected ? null : task.id)}
-                className={`cursor-pointer border-b border-gray-100 transition-colors ${
-                  isSelected ? "bg-orange-50" : "hover:bg-gray-50"
-                }`}
-              >
-                {/* Group color indicator */}
-                <td className="px-2 py-2">
-                  <span
-                    className="inline-block h-3 w-3 rounded-sm"
-                    style={{ backgroundColor: groupColor }}
-                    title={task.group}
-                  />
-                </td>
-
-                <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
-
-                <td className="px-2 py-2 text-gray-600">
-                  {resolved ? formatDate(resolved) : task.deadline || "—"}
-                </td>
-
-                <td className="px-2 py-2 text-gray-600">
-                  {task.assignee ? (
-                    <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
-                      {task.assignee}
-                    </span>
-                  ) : (
-                    "—"
+    <ViewLayout
+      filterPanel={<FilterPanel />}
+      detailPanel={selectedTask ? <TaskDetail task={selectedTask} /> : null}
+    >
+      <div className="h-full overflow-auto p-4">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b-2 border-gray-200">
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  className={`cursor-pointer px-2 py-2 font-semibold text-gray-600 hover:text-gray-800 ${col.className ?? ""}`}
+                >
+                  {col.label}
+                  {sortKey === col.key && (
+                    <span className="ml-1 text-xs">{sortDir === "asc" ? "▲" : "▼"}</span>
                   )}
-                </td>
+                </th>
+              ))}
+              <th className="w-6 px-1 py-2"><IssueIndicator /></th>
+              <th className="w-6 px-1 py-2"><QuestionIndicator /></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTasks.map((task) => {
+              const resolved = resolveDeadline(task.deadline, anchorDate);
+              const hasIssues = task.issues.some((i) => !i.assignee && !i.solution);
+              const hasQuestions = task.questions.some((q) => !q.answer.trim());
+              const isSelected = task.id === selectedTaskId;
+              const groupColor = groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR;
 
-                <td className="px-2 py-2 text-gray-600">
-                  {task.helpers.length}/{task.n_helpers_needed}
-                </td>
-
-                <td className="px-2 py-2">
-                  <StatusBadge status={task.status} />
-                </td>
-
-                <td className="px-1 py-2 text-center">
-                  {hasIssues && (
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" title="Unresolved issues" />
-                  )}
-                </td>
-
-                <td className="px-1 py-2 text-center">
-                  {hasQuestions && (
+              return (
+                <tr
+                  key={task.id}
+                  onClick={() => selectTask(isSelected ? null : task.id)}
+                  className={`cursor-pointer border-b border-gray-100 transition-colors ${
+                    isSelected ? "bg-primary-subtle" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <td className="px-2 py-2">
                     <span
-                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-orange-400 text-[9px] font-bold text-white"
-                      title="Unanswered questions"
-                    >
-                      ?
-                    </span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      className="inline-block h-3 w-3 rounded-sm"
+                      style={{ backgroundColor: groupColor }}
+                      title={task.group}
+                    />
+                  </td>
+                  <td className="px-2 py-2 font-medium text-gray-800">{task.title}</td>
+                  <td className="px-2 py-2 text-gray-600">
+                    {resolved ? formatDate(resolved) : task.deadline || "—"}
+                  </td>
+                  <td className="px-2 py-2">
+                    {task.assignee ? <AssigneeBadge label={task.assignee} variant="light" /> : "—"}
+                  </td>
+                  <td className="px-2 py-2 text-gray-600">
+                    {task.helpers.length}/{task.n_helpers_needed}
+                  </td>
+                  <td className="px-2 py-2"><StatusBadge status={task.status} /></td>
+                  <td className="px-1 py-2 text-center">{hasIssues && <IssueIndicator />}</td>
+                  <td className="px-1 py-2 text-center">{hasQuestions && <QuestionIndicator />}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
-      {sortedTasks.length === 0 && (
-        <p className="mt-8 text-center text-gray-400">No tasks match the current filters</p>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    todo: "bg-gray-100 text-gray-700",
-    in_progress: "bg-yellow-100 text-yellow-800",
-    finished: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-700",
-  };
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-600"}`}>
-      {status.replace("_", " ")}
-    </span>
+        {sortedTasks.length === 0 && (
+          <p className="mt-8 text-center text-gray-400">No tasks match the current filters</p>
+        )}
+      </div>
+    </ViewLayout>
   );
 }

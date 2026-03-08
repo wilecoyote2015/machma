@@ -1,19 +1,14 @@
 /**
  * A markdown content block with view/edit toggle.
- *
- * - View mode: rendered markdown via react-markdown
- * - Edit mode: plain textarea with Save/Abort buttons
+ * View mode: rendered markdown. Edit mode: textarea with Save/Abort.
  */
 
 import { useState } from "react";
 import Markdown from "react-markdown";
 
 interface MarkdownBlockProps {
-  /** The raw markdown string */
   content: string;
-  /** Called with the new content when the user saves */
   onSave: (content: string) => void;
-  /** Optional placeholder when content is empty */
   placeholder?: string;
 }
 
@@ -42,23 +37,13 @@ export function MarkdownBlock({ content, onSave, placeholder = "No content" }: M
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="w-full rounded border border-gray-300 p-2 font-mono text-sm focus:border-orange-400 focus:outline-none"
+          className="input-light w-full font-mono"
           rows={8}
           autoFocus
         />
         <div className="flex gap-2">
-          <button
-            onClick={handleSave}
-            className="rounded bg-orange-500 px-3 py-1 text-sm text-white hover:bg-orange-600"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleAbort}
-            className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-300"
-          >
-            Abort
-          </button>
+          <button onClick={handleSave} className="btn-primary">Save</button>
+          <button onClick={handleAbort} className="btn-secondary">Abort</button>
         </div>
       </div>
     );

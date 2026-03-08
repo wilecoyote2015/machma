@@ -12,6 +12,7 @@
 import type { Node, Edge } from "@xyflow/react";
 import type { Task, TaskGroup } from "@/types";
 import { resolveDeadline, formatDate } from "@/lib/dates";
+import { DEFAULT_GROUP_COLOR, AXIS_COLOR } from "@/lib/constants";
 
 /** Data payload attached to each task node */
 export interface TaskNodeData extends Record<string, unknown> {
@@ -210,11 +211,11 @@ export function computeLayout(
     source: `__tick_${i}`,
     target: `__tick_${i + 1}`,
     type: "straight",
-    style: { stroke: "#6B7280", strokeWidth: 2 },
+    style: { stroke: AXIS_COLOR, strokeWidth: 2 },
     selectable: false,
     focusable: false,
     ...(i === tickDates.length - 2
-      ? { markerEnd: { type: "arrowclosed" as const, color: "#6B7280" } }
+      ? { markerEnd: { type: "arrowclosed" as const, color: AXIS_COLOR } }
       : {}),
   }));
 
@@ -264,7 +265,7 @@ function buildTaskNodeData(
 
   return {
     task,
-    groupColor: groupColorMap.get(task.group) ?? "#9CA3AF",
+    groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
     resolvedDate: resolveDeadline(task.deadline, anchorDate),
     hasUnresolvedIssues,
     hasUnansweredQuestions,
@@ -281,7 +282,7 @@ function buildDependencyEdges(tasks: Task[]): Edge[] {
         id: `${depId}->${task.id}`,
         source: depId,
         target: task.id,
-        style: { strokeDasharray: "6 3", stroke: "#6B7280" },
+        style: { strokeDasharray: "6 3", stroke: AXIS_COLOR },
       });
     }
   }
