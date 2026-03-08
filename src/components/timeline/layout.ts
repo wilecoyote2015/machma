@@ -5,11 +5,14 @@
  * Layout strategy:
  * - Y-axis = time (earlier deadlines at the top, later at the bottom).
  *   Uses a density-aware mapper that stretches clusters and compresses gaps.
- * - X-axis = intelligent group-based lanes with collision avoidance:
+ * - X-axis = per-row compact packing with group affinity:
  *   1. Groups are ordered by dependency connectivity (connected groups adjacent).
- *   2. Within each group, tasks are assigned to sub-lanes to prevent overlaps.
- *   3. Same-group dependency chains prefer the same lane for vertical alignment.
- *   4. Each group's horizontal band width adapts to its required sub-lanes.
+ *   2. Each Y row is packed independently: groups placed left-to-right in order,
+ *      each group's tasks forming a contiguous block.
+ *   3. Between rows, groups try to stay at their previous X position (within a
+ *      tolerance) for vertical alignment; if the gap would be too large, the
+ *      group compacts toward the left.
+ *   4. Initial group slot offsets are estimated from each group's peak density.
  * - Left side: vertical timeline axis with date ticks.
  * - Tasks without a deadline are placed below the last date.
  */
@@ -42,10 +45,16 @@ export interface TimelineTickData extends Record<string, unknown> {
 const NODE_WIDTH = 180;
 /** Estimated rendered height for overlap detection (px). */
 const NODE_HEIGHT = 80;
-/** Horizontal gap between sub-lanes within the same group (px). */
-const SUBCOL_GAP = 24;
-/** Horizontal gap between adjacent group bands (px). */
-const GROUP_BAND_GAP = 50;
+/** Horizontal gap between adjacent nodes on the X grid (px). */
+const NODE_X_GAP = 24;
+/** One slot on the global X grid: node width + gap. */
+const SLOT_WIDTH = NODE_WIDTH + NODE_X_GAP;
+/**
+ * Maximum number of empty grid slots tolerated between a group's previous-row
+ * position and the next available slot. If the gap exceeds this, the group
+ * compacts toward the left instead of preserving alignment.
+ */
+const MAX_ALIGNMENT_GAP = 2;
 /** X position of the timeline axis. */
 const TIMELINE_X = 0;
 /** X offset where the first group band begins (right of the tick labels). */
@@ -66,7 +75,14 @@ interface TaskPlacement {
   task: Task;
   y: number;
   date: Date | null;
-  lane: number;
+  /** Final pixel X position, assigned by `assignXPositions`. */
+  x: number;
+}
+
+/** A placed node tracked for cross-row collision detection. */
+interface PlacedRect {
+  x: number;
+  y: number;
 }
 
 /* ── Timeline tick helpers ───────────────────────────────────────── */
@@ -125,12 +141,10 @@ function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
     return (_time: number) => 0;
   }
 
-  // Sort unique task times
   const sorted = [...new Set(taskDates.map((d) => d.getTime()))].sort(
     (a, b) => a - b,
   );
 
-  // Build control points: start with base linear mapping, then enforce minimum spacing
   const points: { time: number; y: number }[] = [];
   let currentY = 0;
 
@@ -142,13 +156,11 @@ function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
     currentY = y + MIN_NODE_SPACING;
   }
 
-  // If no tasks, fall back to pure linear
   if (points.length === 0) {
     return (time: number) =>
       ((time - minTime) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
   }
 
-  // Map arbitrary time to Y by interpolating between control points
   return (time: number): number => {
     if (time <= points[0]!.time) {
       const ratio =
@@ -190,7 +202,6 @@ function orderGroupsByConnectivity(
 
   const taskGroupMap = new Map(tasks.map((t) => [t.id, t.group]));
 
-  // Build symmetric adjacency weights between groups
   const weights = new Map<string, Map<string, number>>();
   for (const g of groupPaths) weights.set(g, new Map());
 
@@ -208,13 +219,10 @@ function orderGroupsByConnectivity(
     }
   }
 
-  // No cross-group dependencies → keep original order
   if (!hasCrossGroupDeps) return groupPaths;
 
-  // Original index used as a stable tie-breaker
   const origIdx = new Map(groupPaths.map((g, i) => [g, i]));
 
-  // Seed with the most-connected group
   let startGroup = groupPaths[0]!;
   let maxTotal = 0;
   for (const g of groupPaths) {
@@ -262,78 +270,173 @@ function orderGroupsByConnectivity(
   return ordered;
 }
 
-/* ── Per-group lane assignment ───────────────────────────────────── */
+/* ── Per-row X position assignment ───────────────────────────────── */
 
 /**
- * Assign sub-lanes within a single group to prevent vertical overlaps.
- *
- * Uses a greedy interval-scheduling approach: process tasks in ascending Y order,
- * assigning each to the first lane where it fits (no vertical collision).
- * For tasks with same-group dependencies, the dependency's lane is tried first
- * so that related tasks stay vertically aligned.
- *
- * @param placements - Tasks in this group (mutated: .lane is set, array is sorted by Y).
- * @param taskLaneMap - Shared map from task ID → assigned lane (populated incrementally).
- * @param taskGroupMap - Map from task ID → group path for same-group checks.
- * @returns Number of lanes used by this group.
+ * Estimate the peak number of simultaneous tasks per group (tasks sharing
+ * the same Y level within NODE_HEIGHT tolerance). Used to seed the initial
+ * group slot offsets before per-row packing adjusts them.
  */
-function assignGroupLanes(
-  placements: TaskPlacement[],
-  taskLaneMap: Map<string, number>,
-  taskGroupMap: Map<string, string>,
-): number {
-  if (placements.length === 0) return 0;
+function estimateGroupWidths(
+  tasksByGroup: Map<string, TaskPlacement[]>,
+): Map<string, number> {
+  const result = new Map<string, number>();
 
-  // Sort by Y so we can greedily schedule top-to-bottom
-  placements.sort((a, b) => a.y - b.y);
-
-  // Track the Y at which each lane becomes free again
-  const laneEndY: number[] = [];
-
-  for (const p of placements) {
-    // ── Dependency-aware preference: try the same lane as a same-group dependency ──
-    let preferredLane = -1;
-    for (const depId of p.task.depends_on) {
-      if (
-        taskGroupMap.get(depId) === p.task.group &&
-        taskLaneMap.has(depId)
-      ) {
-        preferredLane = taskLaneMap.get(depId)!;
-        break;
-      }
-    }
-
-    if (
-      preferredLane >= 0 &&
-      preferredLane < laneEndY.length &&
-      p.y >= laneEndY[preferredLane]!
-    ) {
-      p.lane = preferredLane;
-      laneEndY[preferredLane] = p.y + NODE_HEIGHT;
-      taskLaneMap.set(p.task.id, p.lane);
+  for (const [group, placements] of tasksByGroup) {
+    if (placements.length === 0) {
+      result.set(group, 1);
       continue;
     }
 
-    // ── Fallback: first available lane ──
-    let assigned = false;
-    for (let lane = 0; lane < laneEndY.length; lane++) {
-      if (p.y >= laneEndY[lane]!) {
-        p.lane = lane;
-        laneEndY[lane] = p.y + NODE_HEIGHT;
-        assigned = true;
+    const sorted = [...placements].sort((a, b) => a.y - b.y);
+    let maxSim = 1;
+
+    for (let i = 0; i < sorted.length; i++) {
+      let count = 1;
+      for (
+        let j = i + 1;
+        j < sorted.length && sorted[j]!.y - sorted[i]!.y < NODE_HEIGHT;
+        j++
+      ) {
+        count++;
+      }
+      maxSim = Math.max(maxSim, count);
+    }
+
+    result.set(group, maxSim);
+  }
+
+  return result;
+}
+
+/**
+ * Find the first contiguous block of `blockSize` free grid slots starting
+ * from `startSlot`, avoiding positions listed in `occupiedXs`.
+ * Searches forward only (increasing slot indices).
+ */
+function findFreeBlock(
+  startSlot: number,
+  blockSize: number,
+  occupiedXs: number[],
+): number {
+  for (let slot = startSlot; slot < startSlot + 200; slot++) {
+    let free = true;
+    for (let k = 0; k < blockSize; k++) {
+      const x = NODES_START_X + (slot + k) * SLOT_WIDTH;
+      if (occupiedXs.some((ox) => Math.abs(ox - x) < SLOT_WIDTH)) {
+        free = false;
         break;
       }
     }
+    if (free) return slot;
+  }
+  return startSlot;
+}
 
-    if (!assigned) {
-      p.lane = laneEndY.length;
-      laneEndY.push(p.y + NODE_HEIGHT);
-    }
+/**
+ * Assign pixel X positions to all tasks using per-row compact packing.
+ *
+ * Each Y row (set of tasks at the same Y level) is packed independently:
+ * groups are placed left-to-right in their global order, with each group's
+ * tasks forming a contiguous block of grid slots.
+ *
+ * Between rows, alignment continuity is maintained: a group's block tries to
+ * start at its previous-row slot position. If the gap to that position exceeds
+ * MAX_ALIGNMENT_GAP, the group compacts toward the left instead.
+ *
+ * Initial group offsets are seeded from `estimateGroupWidths` so that the
+ * first row gets reasonable initial positions without collisions.
+ */
+function assignXPositions(
+  allPlacements: TaskPlacement[],
+  sortedGroupPaths: string[],
+  tasksByGroup: Map<string, TaskPlacement[]>,
+): void {
+  const groupOrder = new Map(
+    sortedGroupPaths.map((g, i) => [g, i]),
+  );
 
-    taskLaneMap.set(p.task.id, p.lane);
+  // Seed initial slot offsets from each group's peak density
+  const widths = estimateGroupWidths(tasksByGroup);
+  const groupPrevSlot = new Map<string, number>();
+  let seedOffset = 0;
+  for (const gp of sortedGroupPaths) {
+    groupPrevSlot.set(gp, seedOffset);
+    seedOffset += widths.get(gp) ?? 1;
   }
 
-  return laneEndY.length;
+  // Cross-row collision tracking
+  const allPlaced: PlacedRect[] = [];
+
+  // Sort tasks by Y for row-based processing
+  allPlacements.sort((a, b) => a.y - b.y);
+
+  let idx = 0;
+  while (idx < allPlacements.length) {
+    // ── Collect one Y-level batch ────────────────────────────────────
+    const rowY = allPlacements[idx]!.y;
+    const rowStart = idx;
+    while (
+      idx < allPlacements.length &&
+      Math.abs(allPlacements[idx]!.y - rowY) < 1
+    ) {
+      idx++;
+    }
+    const row = allPlacements.slice(rowStart, idx);
+
+    // Group this row's tasks by group path
+    const rowByGroup = new Map<string, TaskPlacement[]>();
+    for (const p of row) {
+      const arr = rowByGroup.get(p.task.group) ?? [];
+      arr.push(p);
+      rowByGroup.set(p.task.group, arr);
+    }
+
+    // Groups present in this row, sorted by global order
+    const rowGroups = [...rowByGroup.keys()].sort(
+      (a, b) => (groupOrder.get(a) ?? 0) - (groupOrder.get(b) ?? 0),
+    );
+
+    // X positions occupied by tasks in nearby previous rows
+    const crossRowOccupied = allPlaced
+      .filter((p) => Math.abs(p.y - rowY) < NODE_HEIGHT)
+      .map((p) => p.x);
+
+    // Working set: cross-row + current row (updated as groups are placed)
+    const rowOccupied = [...crossRowOccupied];
+
+    // ── Pack groups left-to-right ────────────────────────────────────
+    let minNextSlot = 0;
+
+    for (const gp of rowGroups) {
+      const tasks = rowByGroup.get(gp)!;
+      const blockSize = tasks.length;
+
+      const prevSlot = groupPrevSlot.get(gp) ?? minNextSlot;
+      let targetSlot: number;
+
+      if (prevSlot >= minNextSlot && prevSlot - minNextSlot <= MAX_ALIGNMENT_GAP) {
+        // Previous position reachable within tolerance → preserve alignment
+        targetSlot = prevSlot;
+      } else {
+        // Gap too large or previous position behind → compact
+        targetSlot = minNextSlot;
+      }
+
+      const startSlot = findFreeBlock(targetSlot, blockSize, rowOccupied);
+
+      // Place each task in consecutive slots within the block
+      for (let k = 0; k < blockSize; k++) {
+        const x = NODES_START_X + (startSlot + k) * SLOT_WIDTH;
+        tasks[k]!.x = x;
+        rowOccupied.push(x);
+        allPlaced.push({ x, y: rowY });
+      }
+
+      groupPrevSlot.set(gp, startSlot);
+      minNextSlot = startSlot + blockSize;
+    }
+  }
 }
 
 /* ── Main layout entry point ─────────────────────────────────────── */
@@ -361,7 +464,6 @@ export function computeLayout(
     .filter((d): d is Date => d !== null);
 
   if (dates.length === 0 && tasks.length > 0) {
-    // No dates at all — position nodes in a simple vertical column
     const nodes: Node<TaskNodeData>[] = resolved.map(({ task }, i) => ({
       id: task.id,
       type: "taskNode",
@@ -383,12 +485,17 @@ export function computeLayout(
   const timeToY = buildYMapper(dates, minTime, maxTime);
   const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
-  // ── Build placements with Y positions per group ───────────────────
+  // ── Build placements and group index ──────────────────────────────
+  const allPlacements: TaskPlacement[] = [];
   const tasksByGroup = new Map<string, TaskPlacement[]>();
+
   for (const { task, date } of resolved) {
     const y = date ? timeToY(date.getTime()) : undatedY;
+    const p: TaskPlacement = { task, y, date, x: NODES_START_X };
+    allPlacements.push(p);
+
     const arr = tasksByGroup.get(task.group) ?? [];
-    arr.push({ task, y, date, lane: 0 });
+    arr.push(p);
     tasksByGroup.set(task.group, arr);
   }
 
@@ -396,43 +503,16 @@ export function computeLayout(
   const groupPaths = [...tasksByGroup.keys()];
   const sortedGroupPaths = orderGroupsByConnectivity(groupPaths, tasks);
 
-  // ── Assign sub-lanes per group (collision avoidance) ──────────────
-  const taskGroupMap = new Map(tasks.map((t) => [t.id, t.group]));
-  const taskLaneMap = new Map<string, number>();
-  const groupLaneCounts = new Map<string, number>();
+  // ── Assign X positions via per-row compact packing ────────────────
+  assignXPositions(allPlacements, sortedGroupPaths, tasksByGroup);
 
-  for (const gp of sortedGroupPaths) {
-    const placements = tasksByGroup.get(gp) ?? [];
-    const numLanes = assignGroupLanes(placements, taskLaneMap, taskGroupMap);
-    groupLaneCounts.set(gp, Math.max(numLanes, 1));
-  }
-
-  // ── Compute group band X offsets (dynamic widths) ─────────────────
-  const groupBandStart = new Map<string, number>();
-  let currentX = NODES_START_X;
-
-  for (const gp of sortedGroupPaths) {
-    groupBandStart.set(gp, currentX);
-    const numLanes = groupLaneCounts.get(gp)!;
-    const bandWidth =
-      numLanes * NODE_WIDTH + Math.max(0, numLanes - 1) * SUBCOL_GAP;
-    currentX += bandWidth + GROUP_BAND_GAP;
-  }
-
-  // ── Build task nodes with final positions ─────────────────────────
-  const taskNodes: Node<TaskNodeData>[] = [];
-  for (const [groupPath, placements] of tasksByGroup) {
-    const bandStart = groupBandStart.get(groupPath)!;
-    for (const p of placements) {
-      const x = bandStart + p.lane * (NODE_WIDTH + SUBCOL_GAP);
-      taskNodes.push({
-        id: p.task.id,
-        type: "taskNode",
-        position: { x, y: p.y },
-        data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate),
-      });
-    }
-  }
+  // ── Build task nodes ──────────────────────────────────────────────
+  const taskNodes: Node<TaskNodeData>[] = allPlacements.map((p) => ({
+    id: p.task.id,
+    type: "taskNode",
+    position: { x: p.x, y: p.y },
+    data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate),
+  }));
 
   // ── Generate timeline tick nodes ──────────────────────────────────
   const tickDates = generateTickDates(minDate, maxDate);

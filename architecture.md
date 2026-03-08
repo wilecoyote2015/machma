@@ -131,12 +131,12 @@ User-written headings inside content sections are elevated on save (e.g. `#` →
 
 **Y-axis (date mapping):** The timeline Y-axis uses a non-linear mapping: a `buildYMapper` function walks sorted task dates and enforces minimum spacing between adjacent nodes, stretching dense clusters and compressing sparse gaps. Timeline tick marks share the same mapping so dates stay aligned.
 
-**X-axis (intelligent group lanes):** The horizontal layout uses a multi-step algorithm in `layout.ts`:
+**X-axis (per-row compact packing):** The horizontal layout uses a multi-step algorithm in `layout.ts`:
 
 1. **Group ordering by connectivity:** Groups are ordered so that groups with cross-group dependencies are placed adjacent. A greedy approach seeds with the most-connected group and iteratively appends the next most-connected group.
-2. **Per-group sub-lane assignment:** Within each group, a greedy interval-scheduling algorithm assigns tasks to sub-lanes. Tasks are processed top-to-bottom (by Y position); each is placed in the first lane where it doesn't vertically collide with an existing task (collision detection uses an estimated `NODE_HEIGHT`).
-3. **Dependency-aware lane preference:** When a task depends on another task in the same group, it prefers the dependency's sub-lane for vertical alignment of related chains.
-4. **Dynamic band widths:** Each group's horizontal band width adapts to the number of sub-lanes it needs (`numLanes * NODE_WIDTH + gaps`). Groups are spaced with a fixed gap between bands.
+2. **Initial slot estimation:** Each group's peak density (maximum simultaneous tasks at any Y level) is computed. This seeds the initial horizontal slot offsets so the first row has reasonable positions without collisions.
+3. **Per-row compact packing:** Each Y row is packed independently. Groups present in the row are placed left-to-right in their global order, with each group's tasks forming a contiguous block of grid slots. This eliminates the fixed-band waste where sparse rows inherited the width of dense rows.
+4. **Alignment continuity:** Between rows, each group tries to stay at its previous-row slot position (within a `MAX_ALIGNMENT_GAP` tolerance of 2 empty slots). If the gap would be too large, the group compacts toward the left. This balances vertical alignment of same-group tasks with horizontal compactness.
 
 **Dependency edge visuals:** Dependency edges are dashed lines with arrowhead markers indicating direction. Each edge is colored by the **source** (parent/blocking) task's status:
 - **gray** — `todo` (default, not yet started)
