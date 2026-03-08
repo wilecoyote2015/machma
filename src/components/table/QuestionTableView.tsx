@@ -37,8 +37,6 @@ interface FlatQuestion {
   taskAssigneeLabel: string;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
 // ── Component ───────────────────────────────────────────────────────
 
 export function QuestionTableView() {
@@ -55,23 +53,29 @@ export function QuestionTableView() {
 
   // ── Flatten → filter ───────────────────────────────────────────
   const rows: FlatQuestion[] = useMemo(() => {
-    const now = Date.now();
+    const startBound = filters.deadlineStart
+      ? new Date(filters.deadlineStart + "T00:00:00")
+      : null;
+    const endBound = filters.deadlineEnd
+      ? new Date(filters.deadlineEnd + "T23:59:59")
+      : null;
     const flat: FlatQuestion[] = [];
 
     for (const task of project.tasks) {
       for (let i = 0; i < task.questions.length; i++) {
         const question = task.questions[i]!;
         const answered = !!question.answer.trim();
-        const resolvedDeadline = resolveDeadline(task.deadline, anchorDate);
+        const resolvedDeadline = resolveDeadline(task.deadline, anchorDate, task.time);
 
         // Apply filters inline during flattening for efficiency
         if (filters.questionStatus === "answered" && !answered) continue;
         if (filters.questionStatus === "unanswered" && answered) continue;
         if (filters.taskAssignees.size > 0 && !filters.taskAssignees.has(task.assignee)) continue;
         if (filters.groups.size > 0 && !filters.groups.has(task.group)) continue;
-        if (filters.deadlineWithinDays !== null) {
+        if (startBound || endBound) {
           if (!resolvedDeadline) continue;
-          if ((resolvedDeadline.getTime() - now) / MS_PER_DAY > filters.deadlineWithinDays) continue;
+          if (startBound && resolvedDeadline < startBound) continue;
+          if (endBound && resolvedDeadline > endBound) continue;
         }
 
         const taskHelper = project.helpers[task.assignee];

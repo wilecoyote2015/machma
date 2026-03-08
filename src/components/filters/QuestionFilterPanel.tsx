@@ -25,14 +25,16 @@ export interface QuestionFilterState {
   questionStatus: QuestionStatusFilter;
   taskAssignees: Set<string>;
   groups: Set<string>;
-  deadlineWithinDays: number | null;
+  deadlineStart: string | null;
+  deadlineEnd: string | null;
 }
 
 export const emptyQuestionFilters = (): QuestionFilterState => ({
   questionStatus: "all",
   taskAssignees: new Set(),
   groups: new Set(),
-  deadlineWithinDays: null,
+  deadlineStart: null,
+  deadlineEnd: null,
 });
 
 const QUESTION_STATUS_OPTIONS: { label: string; value: QuestionStatusFilter }[] = [
@@ -53,7 +55,8 @@ export function QuestionFilterPanel({ filters, onChange }: QuestionFilterPanelPr
     filters.questionStatus !== "all" ||
     filters.taskAssignees.size > 0 ||
     filters.groups.size > 0 ||
-    filters.deadlineWithinDays !== null;
+    filters.deadlineStart !== null ||
+    filters.deadlineEnd !== null;
 
   return (
     <FilterPanelShell
@@ -82,8 +85,10 @@ export function QuestionFilterPanel({ filters, onChange }: QuestionFilterPanelPr
 
       <DeadlineFilterSection
         title="Task Deadline"
-        value={filters.deadlineWithinDays}
-        onChange={(v) => onChange({ ...filters, deadlineWithinDays: v })}
+        start={filters.deadlineStart}
+        end={filters.deadlineEnd}
+        onStartChange={(v) => onChange({ ...filters, deadlineStart: v })}
+        onEndChange={(v) => onChange({ ...filters, deadlineEnd: v })}
       />
     </FilterPanelShell>
   );

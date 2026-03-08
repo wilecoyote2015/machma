@@ -10,13 +10,19 @@
  * - Absolute dates: "2026-05-01"
  * - Absolute datetimes: "2026-05-01 14:30"
  *
+ * If `time` is provided (HH:MM), it overrides the hour/minute on the resolved date.
+ * This supports the separate time-of-day field on tasks.
+ *
  * Returns null if the deadline string is empty or unparseable.
  */
 export function resolveDeadline(
   deadline: string,
   anchorDate: string,
+  time?: string,
 ): Date | null {
   if (!deadline.trim()) return null;
+
+  let date: Date | null = null;
 
   // Relative offset: +Nd or -Nd
   const relMatch = deadline.match(/^([+-]?\d+)d$/);
@@ -24,22 +30,34 @@ export function resolveDeadline(
     const days = parseInt(relMatch[1]!, 10);
     const anchor = new Date(anchorDate + "T00:00:00");
     anchor.setDate(anchor.getDate() + days);
-    return anchor;
+    date = anchor;
   }
 
   // Absolute datetime: YYYY-MM-DD HH:MM
-  const dtMatch = deadline.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
-  if (dtMatch) {
-    return new Date(`${dtMatch[1]}T${dtMatch[2]}:00`);
+  if (!date) {
+    const dtMatch = deadline.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
+    if (dtMatch) {
+      date = new Date(`${dtMatch[1]}T${dtMatch[2]}:00`);
+    }
   }
 
   // Absolute date: YYYY-MM-DD
-  const dateMatch = deadline.match(/^\d{4}-\d{2}-\d{2}$/);
-  if (dateMatch) {
-    return new Date(deadline + "T00:00:00");
+  if (!date) {
+    const dateMatch = deadline.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (dateMatch) {
+      date = new Date(deadline + "T00:00:00");
+    }
   }
 
-  return null;
+  // Apply separate time field if provided (overrides any time from the deadline string)
+  if (date && time?.trim()) {
+    const timeMatch = time.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (timeMatch) {
+      date.setHours(parseInt(timeMatch[1]!, 10), parseInt(timeMatch[2]!, 10), 0, 0);
+    }
+  }
+
+  return date;
 }
 
 /** Format a Date to a display string (YYYY/MM/DD). */

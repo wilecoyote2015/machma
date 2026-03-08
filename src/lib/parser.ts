@@ -38,6 +38,7 @@ function createEmptyTask(id: string, group: string): Task {
     group,
     title: "",
     deadline: "",
+    time: "",
     assignee: "",
     n_helpers_needed: 0,
     status: "todo",
@@ -193,6 +194,9 @@ export function parseTask(content: string, id: string, group: string): Task {
         switch (key) {
           case "deadline":
             task.deadline = value!.trim();
+            break;
+          case "time":
+            task.time = value!.trim();
             break;
           case "assignee":
             task.assignee = value!.trim();

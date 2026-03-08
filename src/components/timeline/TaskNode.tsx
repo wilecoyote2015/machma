@@ -8,7 +8,7 @@
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { NODE_WIDTH, type TaskNodeData } from "./layout";
-import { formatDate } from "@/lib/dates";
+import { formatDateTime } from "@/lib/dates";
 import { statusBorderClass } from "@/components/ui/StatusBadge";
 import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
@@ -32,7 +32,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
     assigneeColor,
   } = data as TaskNodeData;
 
-  const dateStr = resolvedDate ? formatDate(resolvedDate) : task.deadline || "no date";
+  const dateStr = resolvedDate ? formatDateTime(resolvedDate) : task.deadline || "no date";
   const borderClass = statusBorderClass(task.status);
 
   return (

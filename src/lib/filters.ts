@@ -5,8 +5,6 @@
 import type { Task, FilterState } from "@/types";
 import { resolveDeadline } from "@/lib/dates";
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
 /**
  * Apply all active filters to a task list.
  * Returns only tasks that pass every enabled filter.
@@ -16,7 +14,13 @@ export function applyFilters(
   filters: FilterState,
   anchorDate: string,
 ): Task[] {
-  const now = Date.now();
+  // Pre-parse deadline bounds once so we don't re-parse for every task
+  const startBound = filters.deadlineStart
+    ? new Date(filters.deadlineStart + "T00:00:00")
+    : null;
+  const endBound = filters.deadlineEnd
+    ? new Date(filters.deadlineEnd + "T23:59:59")
+    : null;
 
   return tasks.filter((task) => {
     if (filters.tags.size > 0 && !task.tags.some((t) => filters.tags.has(t)))
@@ -47,11 +51,12 @@ export function applyFilters(
       if (!has) return false;
     }
 
-    if (filters.deadlineWithinDays !== null) {
-      const date = resolveDeadline(task.deadline, anchorDate);
+    // Date range filter: task deadline must fall within [start, end]
+    if (startBound || endBound) {
+      const date = resolveDeadline(task.deadline, anchorDate, task.time);
       if (!date) return false;
-      const daysUntil = (date.getTime() - now) / MS_PER_DAY;
-      if (daysUntil > filters.deadlineWithinDays) return false;
+      if (startBound && date < startBound) return false;
+      if (endBound && date > endBound) return false;
     }
 
     return true;

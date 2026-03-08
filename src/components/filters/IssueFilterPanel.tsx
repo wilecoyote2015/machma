@@ -26,7 +26,8 @@ export interface IssueFilterState {
   issueAssignees: Set<string>;
   taskAssignees: Set<string>;
   groups: Set<string>;
-  deadlineWithinDays: number | null;
+  deadlineStart: string | null;
+  deadlineEnd: string | null;
 }
 
 export const emptyIssueFilters = (): IssueFilterState => ({
@@ -34,7 +35,8 @@ export const emptyIssueFilters = (): IssueFilterState => ({
   issueAssignees: new Set(),
   taskAssignees: new Set(),
   groups: new Set(),
-  deadlineWithinDays: null,
+  deadlineStart: null,
+  deadlineEnd: null,
 });
 
 const ISSUE_STATUS_OPTIONS: { label: string; value: IssueStatusFilter }[] = [
@@ -56,7 +58,8 @@ export function IssueFilterPanel({ filters, onChange }: IssueFilterPanelProps) {
     filters.issueAssignees.size > 0 ||
     filters.taskAssignees.size > 0 ||
     filters.groups.size > 0 ||
-    filters.deadlineWithinDays !== null;
+    filters.deadlineStart !== null ||
+    filters.deadlineEnd !== null;
 
   return (
     <FilterPanelShell
@@ -91,8 +94,10 @@ export function IssueFilterPanel({ filters, onChange }: IssueFilterPanelProps) {
 
       <DeadlineFilterSection
         title="Task Deadline"
-        value={filters.deadlineWithinDays}
-        onChange={(v) => onChange({ ...filters, deadlineWithinDays: v })}
+        start={filters.deadlineStart}
+        end={filters.deadlineEnd}
+        onStartChange={(v) => onChange({ ...filters, deadlineStart: v })}
+        onEndChange={(v) => onChange({ ...filters, deadlineEnd: v })}
       />
     </FilterPanelShell>
   );

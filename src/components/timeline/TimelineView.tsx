@@ -52,6 +52,12 @@ export function TimelineView() {
     [project.tasks, filters, project.meta.anchor_date],
   );
 
+  /** Deadline range from the filter state, used to trigger day-view mode in layout. */
+  const deadlineRange = useMemo(
+    () => ({ start: filters.deadlineStart, end: filters.deadlineEnd }),
+    [filters.deadlineStart, filters.deadlineEnd],
+  );
+
   const { nodes, edges: computedEdges } = useMemo(
     () =>
       computeLayout(
@@ -60,8 +66,9 @@ export function TimelineView() {
         project.groups,
         project.meta.anchor_date,
         project.helpers,
+        deadlineRange,
       ),
-    [filteredTasks, project.tasks, project.groups, project.meta.anchor_date, project.helpers],
+    [filteredTasks, project.tasks, project.groups, project.meta.anchor_date, project.helpers, deadlineRange],
   );
 
   // ── Controlled edge state ──────────────────────────────────────────

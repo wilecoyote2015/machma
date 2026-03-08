@@ -30,6 +30,7 @@ export function serializeTask(task: Task): string {
   // Title + metadata (trailing double-space on metadata lines for md line breaks)
   parts.push(`# ${task.title}`);
   parts.push(`deadline: ${task.deadline}  `);
+  if (task.time) parts.push(`time: ${task.time}  `);
   parts.push(`assignee: ${task.assignee}  `);
   parts.push(`n_helpers_needed: ${task.n_helpers_needed}  `);
   parts.push(`status: ${task.status}`);

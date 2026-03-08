@@ -38,7 +38,7 @@ export function TaskDetail({ task }: TaskDetailProps) {
     [task, updateTask],
   );
 
-  const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date);
+  const resolvedDate = resolveDeadline(task.deadline, project.meta.anchor_date, task.time);
   const helperIds = Object.keys(project.helpers);
   const taskIds = project.tasks.map((t) => t.id).filter((id) => id !== task.id);
   const entityIds = Object.keys(project.external_entities);
@@ -71,6 +71,22 @@ export function TaskDetail({ task }: TaskDetailProps) {
               placeholder="-5d or 2026-05-01"
             />
             {resolvedDate && <span className="text-xs text-white/70">{formatDateTime(resolvedDate)}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="w-20 font-semibold">Time</label>
+            <input
+              type="time"
+              value={task.time}
+              onChange={(e) => updateField("time", e.target.value)}
+              className="input-panel w-28"
+            />
+            {task.time && (
+              <button
+                onClick={() => updateField("time", "")}
+                className="text-xs text-white/50 hover:text-white"
+                title="Clear time"
+              >✕</button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <label className="w-20 font-semibold">Status</label>

@@ -44,6 +44,8 @@ A React Flow canvas showing tasks as nodes positioned on a vertical date axis. E
 
 **Stable timeline axis**: The vertical date axis always spans the full date range across all tasks, regardless of active filters. This means task Y positions and the timeline itself stay fixed when toggling filters — the user always keeps temporal orientation. Filtered-out tasks simply disappear from the canvas; they don't shift the remaining nodes' positions.
 
+**Day-view mode**: When the deadline date range filter covers 1–2 days, the timeline automatically switches to a high-resolution day view with hourly tick marks (instead of daily/weekly). Tasks with different time-of-day values are positioned at visually distinct vertical positions, enabling fine-grained scheduling within a single day.
+
 ### Tasks
 A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee (inline editable dropdown showing initials), helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. The assignee column is directly editable — click the dropdown to change the assignee without opening the detail panel. Click a row to open the task detail panel.
 
@@ -66,7 +68,7 @@ Inline-editable table for managing external contacts and organizations (`externa
 
 ### Filtering
 The left filter panel (toggle via the filter icon) provides:
-- **Deadline within**: quick-select buttons (7d, 14d, 30d, 90d)
+- **Deadline**: date range filter with From/To date pickers and preset buttons (7d, 14d, 30d, 90d). Presets fill in today as start and today+N days as end. You can also manually enter arbitrary date ranges. Filtering to a single day or 2-day range triggers the timeline's day-view mode with hourly ticks.
 - **Flags**: checkboxes for "has unresolved issues" and "has unanswered questions"
 - **Status**: toggle chips (todo, in progress, finished, cancelled)
 - **Tags**: toggle chips for all tags found across tasks
@@ -79,7 +81,7 @@ Assignee and Helpers are independent filters — Assignee matches the task's pri
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:
 - **Title**: editable inline at the top of the panel
-- **Metadata**: deadline, status, assignee, group (dropdown selector — changing group moves the file on disk)
+- **Metadata**: deadline, time (optional HH:MM), status, assignee, group (dropdown selector — changing group moves the file on disk)
 - **Helpers**: required count + assigned helper chips with add/remove
 - **Relations**: dependencies, tags, external entities (collapsed by default)
 - **Description**: rendered markdown with click-to-edit
@@ -150,6 +152,7 @@ Each task is a Markdown file with a structured format. The filename (without `.m
 
 **Header fields** (after `# Title`):
 - `deadline`: relative offset (`-5d`, `+2d`) or absolute date (`YYYY-MM-DD` or `YYYY-MM-DD HH:MM`)
+- `time`: optional time of day (`HH:MM`); applied to the resolved deadline date
 - `assignee`: helper ID
 - `n_helpers_needed`: integer
 - `status`: `todo`, `in_progress`, `finished`, or `cancelled`
@@ -171,6 +174,7 @@ User-written headings within content sections are automatically elevated on save
 ```markdown
 # Feed the Horses
 deadline: -5d  
+time: 14:30  
 assignee: bs  
 n_helpers_needed: 10  
 status: in_progress

@@ -88,6 +88,11 @@ interface PlacedRect {
   y: number;
 }
 
+/** Maximum number of days in the filter range that triggers hourly tick mode. */
+const HOURLY_TICK_THRESHOLD_DAYS = 2;
+/** Pixels per day in hourly/day-view mode (~80 px per hour). */
+const DAY_VIEW_PIXELS_PER_DAY = 24 * 80;
+
 /* ── Timeline tick helpers ───────────────────────────────────────── */
 
 /**
@@ -129,6 +134,34 @@ function generateTickDates(minDate: Date, maxDate: Date): Date[] {
   return ticks;
 }
 
+/**
+ * Generate hourly tick marks for day-view mode (filter range ≤ 2 days).
+ * Produces one tick per hour spanning the full range, with midnight ticks
+ * showing the date and others showing just the hour.
+ */
+function generateHourlyTickDates(minDate: Date, maxDate: Date): Date[] {
+  const ticks: Date[] = [];
+  const cursor = new Date(minDate);
+  cursor.setMinutes(0, 0, 0);
+
+  const end = maxDate.getTime();
+  while (cursor.getTime() <= end) {
+    ticks.push(new Date(cursor));
+    cursor.setHours(cursor.getHours() + 1);
+  }
+  // Final tick past end so the axis arrow extends
+  ticks.push(new Date(cursor));
+  return ticks;
+}
+
+/** Format a tick label: full date for midnight, HH:00 for other hours. */
+function formatHourlyTickLabel(date: Date): string {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  if (h === 0 && m === 0) return `${formatDate(date)} 00:00`;
+  return `${String(h).padStart(2, "0")}:00`;
+}
+
 /* ── Y-axis mapping ──────────────────────────────────────────────── */
 
 /**
@@ -138,8 +171,16 @@ function generateTickDates(minDate: Date, maxDate: Date): Date[] {
  * task dates and push any that are too close (< MIN_NODE_SPACING) further apart.
  * The result is a piecewise-linear mapping stored as (time, y) control points.
  * Timeline ticks are placed using the same mapping so they stay aligned.
+ *
+ * @param pixelsPerDay - Base linear scale before density adjustment.
+ *   Higher values give finer Y resolution (used for day-view mode).
  */
-function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
+function buildYMapper(
+  taskDates: Date[],
+  minTime: number,
+  maxTime: number,
+  pixelsPerDay: number = BASE_PIXELS_PER_DAY,
+) {
   const rangeDays = (maxTime - minTime) / MS_PER_DAY;
   if (rangeDays === 0) {
     return (_time: number) => 0;
@@ -154,7 +195,7 @@ function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
 
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i]!;
-    const linearY = ((t - minTime) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+    const linearY = ((t - minTime) / MS_PER_DAY) * pixelsPerDay;
     const y = Math.max(linearY, currentY);
     points.push({ time: t, y });
     currentY = y + MIN_NODE_SPACING;
@@ -162,7 +203,7 @@ function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
 
   if (points.length === 0) {
     return (time: number) =>
-      ((time - minTime) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+      ((time - minTime) / MS_PER_DAY) * pixelsPerDay;
   }
 
   return (time: number): number => {
@@ -175,7 +216,7 @@ function buildYMapper(taskDates: Date[], minTime: number, maxTime: number) {
     }
     if (time >= points[points.length - 1]!.time) {
       const last = points[points.length - 1]!;
-      return last.y + ((time - last.time) / MS_PER_DAY) * BASE_PIXELS_PER_DAY;
+      return last.y + ((time - last.time) / MS_PER_DAY) * pixelsPerDay;
     }
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[i]!;
@@ -445,13 +486,34 @@ function assignXPositions(
 
 /* ── Main layout entry point ─────────────────────────────────────── */
 
+/** Deadline filter range passed from the store to enable day-view mode. */
+export interface DeadlineRange {
+  start: string | null;
+  end: string | null;
+}
+
+/**
+ * Determine if the deadline filter range is short enough for day-view mode.
+ * Returns the range in days, or null if the range is open-ended.
+ */
+function deadlineRangeDays(range: DeadlineRange | undefined): number | null {
+  if (!range?.start || !range?.end) return null;
+  const start = new Date(range.start + "T00:00:00").getTime();
+  const end = new Date(range.end + "T23:59:59").getTime();
+  return (end - start) / MS_PER_DAY;
+}
+
 /**
  * Build React Flow nodes and edges from tasks, groups, and the anchor date.
  * Includes timeline tick nodes and the vertical axis edges.
  *
- * The timeline axis (Y mapping, date range, ticks) is always derived from
+ * The timeline axis (Y mapping, date range, ticks) is normally derived from
  * `allTasks` so it stays stable across filter changes and the user keeps
  * temporal orientation. Only `filteredTasks` are rendered as visible nodes.
+ *
+ * When the deadline filter range covers ≤ 2 days ("day-view mode"), the axis
+ * switches to the filtered range with hourly ticks and much higher Y resolution
+ * so tasks at different times of day have visually distinct vertical positions.
  */
 export function computeLayout(
   filteredTasks: Task[],
@@ -459,18 +521,23 @@ export function computeLayout(
   groups: TaskGroup[],
   anchorDate: string,
   helpers: Record<string, { name: string; color?: string }>,
+  deadlineRange?: DeadlineRange,
 ): { nodes: Node[]; edges: Edge[] } {
   const groupColorMap = new Map(groups.map((g) => [g.path, g.meta.color]));
 
+  // Detect day-view mode: filter range ≤ 2 days
+  const rangeDays = deadlineRangeDays(deadlineRange);
+  const isDayView = rangeDays !== null && rangeDays <= HOURLY_TICK_THRESHOLD_DAYS;
+
   // Resolve deadlines for ALL tasks (stable Y mapping and timeline axis)
   const allDates = allTasks
-    .map((t) => resolveDeadline(t.deadline, anchorDate))
+    .map((t) => resolveDeadline(t.deadline, anchorDate, t.time))
     .filter((d): d is Date => d !== null);
 
   // Resolve deadlines for filtered tasks (visible nodes)
   const filteredResolved = filteredTasks.map((t) => ({
     task: t,
-    date: resolveDeadline(t.deadline, anchorDate),
+    date: resolveDeadline(t.deadline, anchorDate, t.time),
   }));
 
   // No dates across ALL tasks → fall back to simple vertical layout for filtered tasks
@@ -486,14 +553,35 @@ export function computeLayout(
 
   if (allDates.length === 0) return { nodes: [], edges: [] };
 
-  // ── Y positions via smart date mapping (from ALL tasks) ───────────
-  const rawMinTime = Math.min(...allDates.map((d) => d.getTime()));
-  const rawMaxTime = Math.max(...allDates.map((d) => d.getTime()));
-  const minDate = new Date(rawMinTime - TIMELINE_PADDING_DAYS * MS_PER_DAY);
-  const maxDate = new Date(rawMaxTime + TIMELINE_PADDING_DAYS * MS_PER_DAY);
+  // ── Choose axis range and scale ───────────────────────────────────
+  let minDate: Date;
+  let maxDate: Date;
+  let effectivePixelsPerDay: number;
+
+  if (isDayView && deadlineRange!.start && deadlineRange!.end) {
+    // Day-view: axis covers the filter range with high-resolution Y mapping
+    minDate = new Date(deadlineRange!.start + "T00:00:00");
+    maxDate = new Date(deadlineRange!.end + "T23:59:59");
+    effectivePixelsPerDay = DAY_VIEW_PIXELS_PER_DAY;
+  } else {
+    // Normal: axis covers all tasks with padding
+    const rawMinTime = Math.min(...allDates.map((d) => d.getTime()));
+    const rawMaxTime = Math.max(...allDates.map((d) => d.getTime()));
+    minDate = new Date(rawMinTime - TIMELINE_PADDING_DAYS * MS_PER_DAY);
+    maxDate = new Date(rawMaxTime + TIMELINE_PADDING_DAYS * MS_PER_DAY);
+    effectivePixelsPerDay = BASE_PIXELS_PER_DAY;
+  }
+
   const minTime = minDate.getTime();
   const maxTime = maxDate.getTime();
-  const timeToY = buildYMapper(allDates, minTime, maxTime);
+
+  // Y mapper uses filtered tasks' dates in day-view (high resolution)
+  // and all tasks' dates in normal mode (stable axis)
+  const yMapperDates = isDayView
+    ? filteredResolved.map((r) => r.date).filter((d): d is Date => d !== null)
+    : allDates;
+
+  const timeToY = buildYMapper(yMapperDates, minTime, maxTime, effectivePixelsPerDay);
   const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
   // ── Build placements for filtered tasks only ──────────────────────
@@ -527,14 +615,24 @@ export function computeLayout(
     data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate),
   }));
 
-  // ── Generate timeline tick nodes (always from full date range) ────
-  const tickDates = generateTickDates(minDate, maxDate);
+  // ── Generate timeline tick nodes ──────────────────────────────────
+  let tickDates: Date[];
+  let tickLabels: string[];
+
+  if (isDayView) {
+    tickDates = generateHourlyTickDates(minDate, maxDate);
+    tickLabels = tickDates.map(formatHourlyTickLabel);
+  } else {
+    tickDates = generateTickDates(minDate, maxDate);
+    tickLabels = tickDates.map(formatDate);
+  }
+
   const tickNodes: Node<TimelineTickData>[] = tickDates.map((date, i) => ({
     id: `__tick_${i}`,
     type: "timelineTick",
     position: { x: TIMELINE_X, y: timeToY(date.getTime()) },
     data: {
-      label: formatDate(date),
+      label: tickLabels[i]!,
       isFirst: i === 0,
       isLast: i === tickDates.length - 1,
     },
@@ -588,7 +686,7 @@ function buildTaskNodeData(
   return {
     task,
     groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
-    resolvedDate: resolveDeadline(task.deadline, anchorDate),
+    resolvedDate: resolveDeadline(task.deadline, anchorDate, task.time),
     hasUnresolvedIssues,
     hasUnansweredQuestions,
     assigneeName,

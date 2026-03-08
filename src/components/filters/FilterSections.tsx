@@ -11,7 +11,6 @@
 import type { ReactNode } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
-import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
 import { GroupBadge } from "@/components/ui/GroupBadge";
 import { PersonBadge } from "@/components/ui/PersonBadge";
 
@@ -64,35 +63,109 @@ export function FilterPanelShell({
 
 // ── Deadline Filter Section ─────────────────────────────────────────
 
-const DEADLINE_OPTIONS: { label: string; value: number | null }[] = [
-  { label: "All", value: null },
-  { label: "7 days", value: 7 },
-  { label: "14 days", value: 14 },
-  { label: "30 days", value: 30 },
-  { label: "90 days", value: 90 },
+/** Preset definitions: each sets the start and end date relative to today. */
+const DEADLINE_PRESETS: { label: string; days: number }[] = [
+  { label: "7d", days: 7 },
+  { label: "14d", days: 14 },
+  { label: "30d", days: 30 },
+  { label: "90d", days: 90 },
 ];
 
+/** Format a Date as YYYY-MM-DD for <input type="date"> value binding. */
+function toISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 interface DeadlineFilterSectionProps {
-  /** Currently selected proximity value, or null for "all" */
-  value: number | null;
-  onChange: (days: number | null) => void;
+  /** Start of deadline range (YYYY-MM-DD) or null for no lower bound */
+  start: string | null;
+  /** End of deadline range (YYYY-MM-DD) or null for no upper bound */
+  end: string | null;
+  onStartChange: (date: string | null) => void;
+  onEndChange: (date: string | null) => void;
   /** Section title (defaults to "Deadline") */
   title?: string;
 }
 
-/** PanelSection with deadline proximity quick-select buttons. */
+/**
+ * PanelSection with deadline date range: two date inputs plus preset buttons.
+ * Presets fill in the From/To fields; the user can adjust them manually.
+ */
 export function DeadlineFilterSection({
-  value,
-  onChange,
+  start,
+  end,
+  onStartChange,
+  onEndChange,
   title = "Deadline",
 }: DeadlineFilterSectionProps) {
+  /** Check if the current range matches a preset (today → today+N days). */
+  const today = toISODate(new Date());
+  const activePreset = DEADLINE_PRESETS.find((p) => {
+    const presetEnd = new Date();
+    presetEnd.setDate(presetEnd.getDate() + p.days);
+    return start === today && end === toISODate(presetEnd);
+  });
+
+  const isAll = !start && !end;
+
   return (
     <PanelSection title={title}>
-      <FilterToggleGroup
-        options={DEADLINE_OPTIONS}
-        selected={value}
-        onToggle={onChange}
-      />
+      <div className="space-y-2">
+        {/* Preset buttons */}
+        <div className="flex flex-wrap gap-1">
+          <button
+            onClick={() => { onStartChange(null); onEndChange(null); }}
+            className={`rounded px-2 py-0.5 text-xs font-medium transition ${
+              isAll ? "bg-white text-primary" : "bg-primary-muted text-white hover:bg-primary-light"
+            }`}
+          >
+            {isAll && "✓ "}All
+          </button>
+          {DEADLINE_PRESETS.map((p) => {
+            const active = activePreset === p;
+            return (
+              <button
+                key={p.days}
+                onClick={() => {
+                  const todayStr = toISODate(new Date());
+                  const endDate = new Date();
+                  endDate.setDate(endDate.getDate() + p.days);
+                  onStartChange(todayStr);
+                  onEndChange(toISODate(endDate));
+                }}
+                className={`rounded px-2 py-0.5 text-xs font-medium transition ${
+                  active ? "bg-white text-primary" : "bg-primary-muted text-white hover:bg-primary-light"
+                }`}
+              >
+                {active && "✓ "}{p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Date range inputs */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <label className="w-10 shrink-0 font-medium text-white/80">From</label>
+          <input
+            type="date"
+            value={start ?? ""}
+            onChange={(e) => onStartChange(e.target.value || null)}
+            className="input-panel flex-1 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          <label className="w-10 shrink-0 font-medium text-white/80">To</label>
+          <input
+            type="date"
+            value={end ?? ""}
+            onChange={(e) => onEndChange(e.target.value || null)}
+            className="input-panel flex-1 text-xs"
+          />
+        </div>
+      </div>
     </PanelSection>
   );
 }

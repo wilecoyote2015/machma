@@ -101,6 +101,8 @@ export interface Task {
   // ── Metadata fields ────────────────────────────────
   /** Deadline: relative offset ("-5d"), absolute date, or absolute datetime */
   deadline: string;
+  /** Optional time of day for the deadline in HH:MM format (empty = no time) */
+  time: string;
   /** Helper ID of the primary assignee */
   assignee: string;
   /** Number of helpers needed */
@@ -160,6 +162,8 @@ export interface FilterState {
   hasUnresolvedIssues: boolean;
   /** If true, only show tasks with unanswered questions */
   hasUnansweredQuestions: boolean;
-  /** If set, only show tasks with deadline within this many days from now (null = no filter) */
-  deadlineWithinDays: number | null;
+  /** Only show tasks with deadline on or after this date (YYYY-MM-DD, null = no lower bound) */
+  deadlineStart: string | null;
+  /** Only show tasks with deadline on or before this date (YYYY-MM-DD, null = no upper bound) */
+  deadlineEnd: string | null;
 }

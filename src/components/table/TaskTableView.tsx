@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import type { Task, TaskStatus } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
-import { resolveDeadline, formatDate } from "@/lib/dates";
+import { resolveDeadline, formatDateTime } from "@/lib/dates";
 import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR, TASK_STATUSES, formatStatus } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
@@ -48,7 +48,7 @@ export function TaskTableView() {
     const filtered = applyFilters(project.tasks, filters, anchorDate);
     return filtered.map((task) => ({
       task,
-      resolvedDeadline: resolveDeadline(task.deadline, anchorDate),
+      resolvedDeadline: resolveDeadline(task.deadline, anchorDate, task.time),
       groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
       hasUnresolvedIssues: task.issues.some((i) => !i.assignee && !i.solution),
       hasUnansweredQuestions: task.questions.some((q) => !q.answer.trim()),
@@ -86,8 +86,8 @@ export function TaskTableView() {
 				compare: (a, b) =>
 					(a.resolvedDeadline?.getTime() ?? Infinity) -
 					(b.resolvedDeadline?.getTime() ?? Infinity),
-				render: (r) =>
-					r.resolvedDeadline ? formatDate(r.resolvedDeadline) : r.task.deadline || "—",
+			render: (r) =>
+				r.resolvedDeadline ? formatDateTime(r.resolvedDeadline) : r.task.deadline || "—",
 			},
 			{
 				key: "assignee",

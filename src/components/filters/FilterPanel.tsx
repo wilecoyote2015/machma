@@ -29,7 +29,8 @@ export function FilterPanel() {
   const toggleStatus = useProjectStore((s) => s.toggleStatusFilter);
   const setHasUnresolvedIssues = useProjectStore((s) => s.setHasUnresolvedIssues);
   const setHasUnansweredQuestions = useProjectStore((s) => s.setHasUnansweredQuestions);
-  const setDeadlineWithinDays = useProjectStore((s) => s.setDeadlineWithinDays);
+  const setDeadlineStart = useProjectStore((s) => s.setDeadlineStart);
+  const setDeadlineEnd = useProjectStore((s) => s.setDeadlineEnd);
   const clearFilters = useProjectStore((s) => s.clearFilters);
 
   const allTags = useMemo(() => {
@@ -48,13 +49,16 @@ export function FilterPanel() {
     filters.statuses.size > 0 ||
     filters.hasUnresolvedIssues ||
     filters.hasUnansweredQuestions ||
-    filters.deadlineWithinDays !== null;
+    filters.deadlineStart !== null ||
+    filters.deadlineEnd !== null;
 
   return (
     <FilterPanelShell hasActiveFilters={hasActiveFilters} onClearAll={clearFilters}>
       <DeadlineFilterSection
-        value={filters.deadlineWithinDays}
-        onChange={setDeadlineWithinDays}
+        start={filters.deadlineStart}
+        end={filters.deadlineEnd}
+        onStartChange={setDeadlineStart}
+        onEndChange={setDeadlineEnd}
       />
 
       <PanelSection title="Flags">

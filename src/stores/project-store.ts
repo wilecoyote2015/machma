@@ -38,7 +38,8 @@ interface ProjectStore {
   toggleStatusFilter: (status: TaskStatus) => void;
   setHasUnresolvedIssues: (value: boolean) => void;
   setHasUnansweredQuestions: (value: boolean) => void;
-  setDeadlineWithinDays: (days: number | null) => void;
+  setDeadlineStart: (date: string | null) => void;
+  setDeadlineEnd: (date: string | null) => void;
   clearFilters: () => void;
 
   saveHelpers: () => Promise<void>;
@@ -53,7 +54,8 @@ const emptyFilters = (): FilterState => ({
   statuses: new Set(),
   hasUnresolvedIssues: false,
   hasUnansweredQuestions: false,
-  deadlineWithinDays: null,
+  deadlineStart: null,
+  deadlineEnd: null,
 });
 
 // ── Store implementation ───────────────────────────────────────────
@@ -122,6 +124,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       group,
       title: id.replace(/_/g, " "),
       deadline: "",
+      time: "",
       assignee: "",
       n_helpers_needed: 0,
       status: "todo",
@@ -234,8 +237,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setHasUnansweredQuestions: (value) =>
     set((s) => ({ filters: { ...s.filters, hasUnansweredQuestions: value } })),
 
-  setDeadlineWithinDays: (days) =>
-    set((s) => ({ filters: { ...s.filters, deadlineWithinDays: days } })),
+  setDeadlineStart: (date) =>
+    set((s) => ({ filters: { ...s.filters, deadlineStart: date } })),
+
+  setDeadlineEnd: (date) =>
+    set((s) => ({ filters: { ...s.filters, deadlineEnd: date } })),
 
   clearFilters: () => set({ filters: emptyFilters() }),
 

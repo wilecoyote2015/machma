@@ -154,7 +154,11 @@ Color constants live in `EDGE_COLOR` in `lib/constants.ts`.
 
 Both operations persist immediately to disk via `updateTask` in the Zustand store. Edges are derived from task data (`depends_on`) on every render — a local `useState` mirrors the computed edges to support React Flow's controlled-edge selection/deletion API, synced synchronously during render (not via `useEffect`) to avoid 1-frame mismatches between nodes and edges.
 
-**Stable timeline axis across filters:** `computeLayout` receives both `filteredTasks` and `allTasks`. The Y-axis mapping (date→pixel), date range, and timeline tick generation are always based on **all** tasks so the timeline stays stable when filters change — the user keeps temporal orientation. Only filtered tasks are rendered as visible nodes. Tick marks span the full date range from first to last task date (with padding), and `generateTickDates` always includes a final tick at or past the max date so the axis arrow reaches the end. The `minZoom` is set low (0.05) so users can zoom out to see the entire timeline.
+**Stable timeline axis across filters:** `computeLayout` receives both `filteredTasks` and `allTasks`. In normal mode, the Y-axis mapping (date→pixel), date range, and timeline tick generation are always based on **all** tasks so the timeline stays stable when filters change — the user keeps temporal orientation. Only filtered tasks are rendered as visible nodes. Tick marks span the full date range from first to last task date (with padding), and `generateTickDates` always includes a final tick at or past the max date so the axis arrow reaches the end. The `minZoom` is set low (0.05) so users can zoom out to see the entire timeline.
+
+**Day-view mode (hourly ticks):** When the deadline date range filter covers ≤ 2 days, `computeLayout` switches to "day-view mode": the Y-axis covers only the filtered date range (not all tasks), uses a much higher pixel-per-day scale (`DAY_VIEW_PIXELS_PER_DAY = 24 * 80` ≈ 80 px/hour), and generates hourly tick marks via `generateHourlyTickDates`. Midnight ticks show the full date; other ticks show just "HH:00". This allows tasks with different time-of-day values to be visually separated vertically. The `buildYMapper` function accepts a `pixelsPerDay` parameter to support both normal and day-view scales.
+
+**Task time-of-day:** Each task has an optional `time` field (HH:MM). When set, `resolveDeadline` applies it to the resolved date, giving tasks with different times distinct timestamps and thus distinct Y positions on the timeline — particularly visible in day-view mode.
 
 **Dangling edge prevention:** `buildDependencyEdges` only creates edges when both the source and target task exist in the current (potentially filtered) task set. This prevents React Flow from receiving edges referencing non-existent nodes.
 
@@ -168,7 +172,7 @@ All table views (Tasks, Issues, Questions) share a generic **`SortableTable<T>`*
 
 All filter panels compose from shared building blocks in **`FilterSections.tsx`**:
 - `FilterPanelShell` — outer wrapper with "Clear all" button and consistent styling
-- `DeadlineFilterSection` — deadline proximity quick-select buttons
+- `DeadlineFilterSection` — deadline date range filter with From/To date inputs and preset buttons (7d, 14d, 30d, 90d) that fill in the dates. Presets set start=today, end=today+N days.
 - `GroupFilterSection` — group checkbox list (reads groups from the store)
 - `AssigneeFilterSection` — helper checkbox list with parameterized title
 - `toggleSet` — immutable Set toggle utility
@@ -256,8 +260,8 @@ A single Zustand store (`project-store.ts`) holds:
 - `project`: the full parsed Project model (tasks, groups, helpers, entities)
 - `selectedTaskId`: currently selected task
 - `activeView`: which tab is shown (timeline, table, issues, questions, helperlist, helpers, entities)
-- `filters`: all filter state (tags, groups, helpers, assignees, statuses, flags, deadline proximity)
-- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles (including separate `toggleAssigneeFilter` and `toggleHelperFilter`), `saveHelpers`, `saveExternalEntities`
+- `filters`: all filter state (tags, groups, helpers, assignees, statuses, flags, deadline date range)
+- Actions: `openProject`, `reloadProject`, `updateTask`, `addTask`, `deleteTask`, `createGroup`, filter toggles (including separate `toggleAssigneeFilter` and `toggleHelperFilter`, `setDeadlineStart`, `setDeadlineEnd`), `saveHelpers`, `saveExternalEntities`
 
 ### Group Management
 
