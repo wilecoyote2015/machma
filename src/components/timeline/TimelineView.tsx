@@ -12,7 +12,6 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import {
   ReactFlow,
-  Background,
   Controls,
   MiniMap,
   applyEdgeChanges,
@@ -349,7 +348,6 @@ export function TimelineView() {
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
-          <Background/>
           <Controls fitViewOptions={{ padding: 0.3, nodes: fitViewNodes }} />
           <MiniMap
             nodeColor={(node) => {
