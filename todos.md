@@ -1,2 +1,2 @@
-- Helperlist view: view that lists helpers for each task that requires helpers.
-For each task that requires helpers, there is a table, where each row is the name of the helper. Helpers can be added and removed. Also there is the setting to set number of required helpers for the task. Click on task opens the task detail panel. 
+- PDF- und Excel-Export der ganzen Tabellen und der Helferliste
+- add optional color field to helper data. Used to draw color of assignee badge in nodes
