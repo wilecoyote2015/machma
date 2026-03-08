@@ -181,6 +181,12 @@ export function TimelineView() {
     ? project.tasks.find((t) => t.id === selectedTaskId) ?? null
     : null;
 
+  /** Only task nodes (not timeline ticks) should be considered for fit-to-view */
+  const fitViewNodes = useMemo(
+    () => filteredTasks.map((t) => ({ id: t.id })),
+    [filteredTasks],
+  );
+
   return (
     <ViewLayout
       filterPanel={<FilterPanel />}
@@ -198,13 +204,13 @@ export function TimelineView() {
           isValidConnection={isValidConnection}
           connectionLineStyle={connectionLineStyle}
           fitView
-          fitViewOptions={{ padding: 0.3 }}
+          fitViewOptions={{ padding: 0.3, nodes: fitViewNodes }}
           minZoom={0.05}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >
           <Background />
-          <Controls />
+          <Controls fitViewOptions={{ padding: 0.3, nodes: fitViewNodes }} />
           <MiniMap
             nodeColor={(node) => {
               if (node.id.startsWith("__tick_")) return "transparent";
