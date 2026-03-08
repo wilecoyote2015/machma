@@ -31,6 +31,8 @@ export interface TaskNodeData extends Record<string, unknown> {
   hasUnresolvedIssues: boolean;
   hasUnansweredQuestions: boolean;
   assigneeName: string;
+  /** Custom color for the assignee badge (from helper data) */
+  assigneeColor: string;
 }
 
 /** Data payload for a timeline tick node */
@@ -101,7 +103,8 @@ function chooseTickInterval(rangeDays: number): number {
 
 /**
  * Generate an array of dates for tick marks, spanning the full range
- * at a sensible interval.
+ * at a sensible interval. Always includes a final tick at or past maxDate
+ * so the axis arrow reaches the end of the date range.
  */
 function generateTickDates(minDate: Date, maxDate: Date): Date[] {
   const rangeDays = (maxDate.getTime() - minDate.getTime()) / MS_PER_DAY;
@@ -112,16 +115,16 @@ function generateTickDates(minDate: Date, maxDate: Date): Date[] {
 
   const ticks: Date[] = [];
   const cursor = new Date(start);
-  const end = maxDate.getTime() + MS_PER_DAY;
+  const end = maxDate.getTime();
 
   while (cursor.getTime() <= end) {
     ticks.push(new Date(cursor));
     cursor.setDate(cursor.getDate() + intervalDays);
   }
 
-  if (ticks.length < 2) {
-    ticks.push(new Date(end));
-  }
+  // Always include a final tick past the end so the axis arrow extends
+  // to or beyond the last task date (cursor is now past maxDate)
+  ticks.push(new Date(cursor));
 
   return ticks;
 }
@@ -445,55 +448,62 @@ function assignXPositions(
 /**
  * Build React Flow nodes and edges from tasks, groups, and the anchor date.
  * Includes timeline tick nodes and the vertical axis edges.
+ *
+ * The timeline axis (Y mapping, date range, ticks) is always derived from
+ * `allTasks` so it stays stable across filter changes and the user keeps
+ * temporal orientation. Only `filteredTasks` are rendered as visible nodes.
  */
 export function computeLayout(
-  tasks: Task[],
+  filteredTasks: Task[],
+  allTasks: Task[],
   groups: TaskGroup[],
   anchorDate: string,
-  helpers: Record<string, { name: string }>,
+  helpers: Record<string, { name: string; color?: string }>,
 ): { nodes: Node[]; edges: Edge[] } {
   const groupColorMap = new Map(groups.map((g) => [g.path, g.meta.color]));
 
-  // Resolve all deadlines
-  const resolved = tasks.map((t) => ({
+  // Resolve deadlines for ALL tasks (stable Y mapping and timeline axis)
+  const allDates = allTasks
+    .map((t) => resolveDeadline(t.deadline, anchorDate))
+    .filter((d): d is Date => d !== null);
+
+  // Resolve deadlines for filtered tasks (visible nodes)
+  const filteredResolved = filteredTasks.map((t) => ({
     task: t,
     date: resolveDeadline(t.deadline, anchorDate),
   }));
 
-  const dates = resolved
-    .map((r) => r.date)
-    .filter((d): d is Date => d !== null);
-
-  if (dates.length === 0 && tasks.length > 0) {
-    const nodes: Node<TaskNodeData>[] = resolved.map(({ task }, i) => ({
+  // No dates across ALL tasks → fall back to simple vertical layout for filtered tasks
+  if (allDates.length === 0 && filteredTasks.length > 0) {
+    const nodes: Node<TaskNodeData>[] = filteredResolved.map(({ task }, i) => ({
       id: task.id,
       type: "taskNode",
       position: { x: NODES_START_X, y: i * 100 },
       data: buildTaskNodeData(task, groupColorMap, helpers, anchorDate),
     }));
-    return { nodes, edges: buildDependencyEdges(tasks) };
+    return { nodes, edges: buildDependencyEdges(filteredTasks) };
   }
 
-  if (tasks.length === 0) return { nodes: [], edges: [] };
+  if (allDates.length === 0) return { nodes: [], edges: [] };
 
-  // ── Y positions via smart date mapping ────────────────────────────
-  const rawMinTime = Math.min(...dates.map((d) => d.getTime()));
-  const rawMaxTime = Math.max(...dates.map((d) => d.getTime()));
+  // ── Y positions via smart date mapping (from ALL tasks) ───────────
+  const rawMinTime = Math.min(...allDates.map((d) => d.getTime()));
+  const rawMaxTime = Math.max(...allDates.map((d) => d.getTime()));
   const minDate = new Date(rawMinTime - TIMELINE_PADDING_DAYS * MS_PER_DAY);
   const maxDate = new Date(rawMaxTime + TIMELINE_PADDING_DAYS * MS_PER_DAY);
   const minTime = minDate.getTime();
   const maxTime = maxDate.getTime();
-  const timeToY = buildYMapper(dates, minTime, maxTime);
+  const timeToY = buildYMapper(allDates, minTime, maxTime);
   const undatedY = timeToY(maxTime) + MIN_NODE_SPACING;
 
-  // ── Build placements and group index ──────────────────────────────
-  const allPlacements: TaskPlacement[] = [];
+  // ── Build placements for filtered tasks only ──────────────────────
+  const placements: TaskPlacement[] = [];
   const tasksByGroup = new Map<string, TaskPlacement[]>();
 
-  for (const { task, date } of resolved) {
+  for (const { task, date } of filteredResolved) {
     const y = date ? timeToY(date.getTime()) : undatedY;
     const p: TaskPlacement = { task, y, date, x: NODES_START_X };
-    allPlacements.push(p);
+    placements.push(p);
 
     const arr = tasksByGroup.get(task.group) ?? [];
     arr.push(p);
@@ -502,20 +512,22 @@ export function computeLayout(
 
   // ── Order groups by dependency connectivity ───────────────────────
   const groupPaths = [...tasksByGroup.keys()];
-  const sortedGroupPaths = orderGroupsByConnectivity(groupPaths, tasks);
+  const sortedGroupPaths = orderGroupsByConnectivity(groupPaths, filteredTasks);
 
   // ── Assign X positions via per-row compact packing ────────────────
-  assignXPositions(allPlacements, sortedGroupPaths, tasksByGroup);
+  if (placements.length > 0) {
+    assignXPositions(placements, sortedGroupPaths, tasksByGroup);
+  }
 
   // ── Build task nodes ──────────────────────────────────────────────
-  const taskNodes: Node<TaskNodeData>[] = allPlacements.map((p) => ({
+  const taskNodes: Node<TaskNodeData>[] = placements.map((p) => ({
     id: p.task.id,
     type: "taskNode",
     position: { x: p.x, y: p.y },
     data: buildTaskNodeData(p.task, groupColorMap, helpers, anchorDate),
   }));
 
-  // ── Generate timeline tick nodes ──────────────────────────────────
+  // ── Generate timeline tick nodes (always from full date range) ────
   const tickDates = generateTickDates(minDate, maxDate);
   const tickNodes: Node<TimelineTickData>[] = tickDates.map((date, i) => ({
     id: `__tick_${i}`,
@@ -549,7 +561,7 @@ export function computeLayout(
 
   return {
     nodes: [...tickNodes, ...taskNodes],
-    edges: [...tickEdges, ...buildDependencyEdges(tasks)],
+    edges: [...tickEdges, ...buildDependencyEdges(filteredTasks)],
   };
 }
 
@@ -559,7 +571,7 @@ export function computeLayout(
 function buildTaskNodeData(
   task: Task,
   groupColorMap: Map<string, string>,
-  helpers: Record<string, { name: string }>,
+  helpers: Record<string, { name: string; color?: string }>,
   anchorDate: string,
 ): TaskNodeData {
   const hasUnresolvedIssues = task.issues.some(
@@ -571,6 +583,7 @@ function buildTaskNodeData(
 
   const helper = task.assignee ? helpers[task.assignee] : undefined;
   const assigneeName = helper ? getInitials(helper.name) : task.assignee;
+  const assigneeColor = helper?.color ?? "";
 
   return {
     task,
@@ -579,6 +592,7 @@ function buildTaskNodeData(
     hasUnresolvedIssues,
     hasUnansweredQuestions,
     assigneeName,
+    assigneeColor,
   };
 }
 
@@ -595,7 +609,10 @@ function buildDependencyEdges(tasks: Task[]): Edge[] {
 
   for (const task of tasks) {
     for (const depId of task.depends_on) {
-      const sourceStatus = taskStatusMap.get(depId) ?? "todo";
+      // Skip edges to tasks not in the current set (e.g. filtered out)
+      if (!taskStatusMap.has(depId)) continue;
+
+      const sourceStatus = taskStatusMap.get(depId)!;
       const color = EDGE_COLOR[sourceStatus] ?? EDGE_COLOR.todo!;
 
       edges.push({

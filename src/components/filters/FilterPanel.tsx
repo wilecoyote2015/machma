@@ -7,7 +7,6 @@
 
 import { useMemo } from "react";
 import { useProjectStore } from "@/stores/project-store";
-import type { TaskStatus } from "@/types";
 import { PanelSection } from "@/components/common/PanelSection";
 import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
 import { IssueIndicator } from "@/components/ui/IssueIndicator";
@@ -18,13 +17,7 @@ import {
   GroupFilterSection,
   AssigneeFilterSection,
 } from "@/components/filters/FilterSections";
-
-const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
-  { label: "todo", value: "todo" },
-  { label: "in progress", value: "in_progress" },
-  { label: "finished", value: "finished" },
-  { label: "cancelled", value: "cancelled" },
-];
+import { TASK_STATUS_OPTIONS } from "@/lib/constants";
 
 export function FilterPanel() {
   const project = useProjectStore((s) => s.project)!;
@@ -90,7 +83,7 @@ export function FilterPanel() {
       </PanelSection>
 
       <PanelSection title="Status">
-        <FilterToggleGroup options={STATUS_OPTIONS} selected={filters.statuses} onToggle={toggleStatus} />
+        <FilterToggleGroup options={TASK_STATUS_OPTIONS} selected={filters.statuses} onToggle={toggleStatus} />
       </PanelSection>
 
       <PanelSection title="Tags" defaultOpen={allTags.length > 0}>

@@ -57,5 +57,9 @@
 }
 
 .select-panel {
-  @apply rounded border border-white/30 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none;
+  @apply rounded border border-white/30 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none [&>option]:text-black;
+}
+
+.select-table {
+  @apply w-full rounded px-1.5 py-0.5 text-xs focus:outline-none;
 }

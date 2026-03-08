@@ -12,8 +12,8 @@ import type { ReactNode } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelSection } from "@/components/common/PanelSection";
 import { FilterToggleGroup } from "@/components/ui/FilterToggleGroup";
-import { AssigneeBadge } from "@/components/ui/AssigneeBadge";
 import { GroupBadge } from "@/components/ui/GroupBadge";
+import { PersonBadge } from "@/components/ui/PersonBadge";
 
 // ── Utility ─────────────────────────────────────────────────────────
 
@@ -175,7 +175,7 @@ export function AssigneeFilterSection({
               onChange={() => onToggle(id)}
               className="accent-white"
             />
-            <AssigneeBadge label={helper.name} variant="dark" />
+            <PersonBadge name={helper.name} color={helper.color || undefined} />
           </label>
         ))}
       </div>

@@ -7,9 +7,7 @@
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { CreateGroupDialog } from "@/components/common/CreateGroupDialog";
-
-/** Sentinel value used as the "New group…" option */
-const NEW_GROUP_SENTINEL = "__new_group__";
+import { NEW_GROUP_SENTINEL } from "@/lib/constants";
 
 interface AddTaskDialogProps {
   onClose: () => void;

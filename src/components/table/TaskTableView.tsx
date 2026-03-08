@@ -9,7 +9,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
 import { resolveDeadline, formatDate } from "@/lib/dates";
 import { getInitials } from "@/lib/format";
-import { DEFAULT_GROUP_COLOR } from "@/lib/constants";
+import { DEFAULT_GROUP_COLOR, TASK_STATUSES, formatStatus } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
 import { SortableTable, type Column } from "@/components/common/SortableTable";
 import { FilterPanel } from "@/components/filters/FilterPanel";
@@ -106,12 +106,10 @@ export function TaskTableView() {
 							updateTask({ ...r.task, assignee: e.target.value });
 						}}
 						onClick={(e) => e.stopPropagation()}
-						className={`w-full rounded px-1.5 py-0.5 text-xs  ${statusBorderClass(r.task.status)}`}>
+						className={`select-table ${statusBorderClass(r.task.status)}`}>
 						<option value="">—</option>
 						{Object.entries(helperMap).map(([id, helper]) => (
-							<option
-								key={id}
-								value={id}>
+							<option key={id} value={id}>
 								{getInitials(helper.name)}
 							</option>
 						))}
@@ -139,16 +137,12 @@ export function TaskTableView() {
 							updateTask({ ...r.task, status: e.target.value as TaskStatus });
 						}}
 						onClick={(e) => e.stopPropagation()}
-						className={`w-full rounded px-1.5 py-0.5 text-xs  ${statusBorderClass(r.task.status)}`}>
-						{(["todo", "in_progress", "finished", "cancelled"] as TaskStatus[]).map(
-							(s) => (
-								<option
-									key={s}
-									value={s}>
-									{s.replace("_", " ")}
-								</option>
-							),
-						)}
+						className={`select-table ${statusBorderClass(r.task.status)}`}>
+						{TASK_STATUSES.map((s) => (
+							<option key={s} value={s}>
+								{formatStatus(s)}
+							</option>
+						))}
 					</select>
 				),
 			},

@@ -17,6 +17,8 @@ interface EditableRecordTableProps<T extends { [K in keyof T]: string }> {
   newRecordDefaults: T;
   /** Placeholder for the new-record ID input */
   idPlaceholder: string;
+  /** Optional HTML input type overrides per field (e.g. { color: "color" }) */
+  fieldTypes?: Partial<Record<keyof T & string, string>>;
 }
 
 export function EditableRecordTable<T extends { [K in keyof T]: string }>({
@@ -26,6 +28,7 @@ export function EditableRecordTable<T extends { [K in keyof T]: string }>({
   onSave,
   newRecordDefaults,
   idPlaceholder,
+  fieldTypes,
 }: EditableRecordTableProps<T>) {
   const [records, setRecords] = useState(initialRecords);
   const [newId, setNewId] = useState("");
@@ -90,9 +93,14 @@ export function EditableRecordTable<T extends { [K in keyof T]: string }>({
                 {fields.map((field) => (
                   <td key={field} className="px-2 py-2">
                     <input
+                      type={fieldTypes?.[field] ?? "text"}
                       value={record[field]}
                       onChange={(e) => updateField(id, field, e.target.value)}
-                      className="input-light w-full"
+                      className={
+                        fieldTypes?.[field] === "color"
+                          ? "h-8 w-12 cursor-pointer rounded border border-gray-300"
+                          : "input-light w-full"
+                      }
                     />
                   </td>
                 ))}

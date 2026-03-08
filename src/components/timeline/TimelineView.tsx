@@ -9,7 +9,7 @@
  * - Dependency edges are colored by the source task's status.
  */
 
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -56,21 +56,25 @@ export function TimelineView() {
     () =>
       computeLayout(
         filteredTasks,
+        project.tasks,
         project.groups,
         project.meta.anchor_date,
         project.helpers,
       ),
-    [filteredTasks, project.groups, project.meta.anchor_date, project.helpers],
+    [filteredTasks, project.tasks, project.groups, project.meta.anchor_date, project.helpers],
   );
 
   // ── Controlled edge state ──────────────────────────────────────────
   // Edges are derived from task data but managed locally for interactive
   // selection/deletion via React Flow's controlled-edge API.
+  // Synced synchronously (during render) to avoid 1-frame mismatches.
   const [edges, setEdges] = useState<Edge[]>(computedEdges);
+  const [prevComputedEdges, setPrevComputedEdges] = useState(computedEdges);
 
-  useEffect(() => {
+  if (computedEdges !== prevComputedEdges) {
     setEdges(computedEdges);
-  }, [computedEdges]);
+    setPrevComputedEdges(computedEdges);
+  }
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
@@ -195,7 +199,7 @@ export function TimelineView() {
           connectionLineStyle={connectionLineStyle}
           fitView
           fitViewOptions={{ padding: 0.3 }}
-          minZoom={0.2}
+          minZoom={0.05}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
         >

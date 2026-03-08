@@ -47,7 +47,7 @@ src/
 │   └── project-store.ts              # Zustand store: project, selectedTask, filters, CRUD actions
 │
 ├── lib/
-│   ├── constants.ts                  # Shared constants (DEFAULT_GROUP_COLOR, AXIS_COLOR)
+│   ├── constants.ts                  # Shared constants, task status lists, formatStatus(), sentinel values
 │   ├── format.ts                     # Person display formatting (getInitials)
 │   ├── fs.ts                         # File System Access API wrapper (open, read, write, list)
 │   ├── parser.ts                     # State-machine MD parser (.md → Task object)
@@ -81,7 +81,8 @@ src/
 │   │   ├── IssueIndicator.tsx        # Red dot (unresolved issues)
 │   │   ├── QuestionIndicator.tsx     # Orange "?" circle (unanswered questions)
 │   │   ├── StatusBadge.tsx           # Colored status badge + border class helper
-│   │   ├── AssigneeBadge.tsx         # Green assignee chip (dark/light variants)
+│   │   ├── AssigneeBadge.tsx         # Colored assignee chip with optional custom color (dark/light variants)
+│   │   ├── PersonBadge.tsx          # Color circle + person name label (mirrors GroupBadge for people)
 │   │   ├── GroupBadge.tsx            # Color circle + group path label (used in table, filters, detail)
 │   │   └── FilterToggleGroup.tsx     # Toggle button group for filter chips
 │   │
@@ -151,7 +152,11 @@ Color constants live in `EDGE_COLOR` in `lib/constants.ts`.
 - **Create:** Drag from a node's bottom handle (source) to another node's top handle (target). Validation prevents self-references, duplicate edges, and connections to timeline tick nodes.
 - **Remove:** Select a dependency edge (click it), then press Delete or Backspace.
 
-Both operations persist immediately to disk via `updateTask` in the Zustand store. Edges are derived from task data (`depends_on`) on every render — a local `useState` mirrors the computed edges to support React Flow's controlled-edge selection/deletion API, synced via `useEffect`.
+Both operations persist immediately to disk via `updateTask` in the Zustand store. Edges are derived from task data (`depends_on`) on every render — a local `useState` mirrors the computed edges to support React Flow's controlled-edge selection/deletion API, synced synchronously during render (not via `useEffect`) to avoid 1-frame mismatches between nodes and edges.
+
+**Stable timeline axis across filters:** `computeLayout` receives both `filteredTasks` and `allTasks`. The Y-axis mapping (date→pixel), date range, and timeline tick generation are always based on **all** tasks so the timeline stays stable when filters change — the user keeps temporal orientation. Only filtered tasks are rendered as visible nodes. Tick marks span the full date range from first to last task date (with padding), and `generateTickDates` always includes a final tick at or past the max date so the axis arrow reaches the end. The `minZoom` is set low (0.05) so users can zoom out to see the entire timeline.
+
+**Dangling edge prevention:** `buildDependencyEdges` only creates edges when both the source and target task exist in the current (potentially filtered) task set. This prevents React Flow from receiving edges referencing non-existent nodes.
 
 ### ViewLayout Abstraction
 
@@ -201,26 +206,44 @@ ViewLayout handles responsive breakpoints:
 
 ### Centralized Theming
 
-All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (primary, issue, question, success, panel, etc.). Reusable CSS classes (`.btn-primary`, `.btn-secondary`, `.input-light`, `.input-panel`, `.select-panel`) are defined with `@apply`. Hex constants for non-CSS contexts (React Flow node data, inline styles) live in `lib/constants.ts`, including `EDGE_COLOR` — a status-keyed map of dependency edge colors.
+All semantic colors are defined once in `index.css` via Tailwind v4 `@theme` (primary, issue, question, success, panel, etc.). Reusable CSS classes (`.btn-primary`, `.btn-secondary`, `.input-light`, `.input-panel`, `.select-panel`, `.select-table`) are defined with `@apply`. The `.select-panel` class includes `[&>option]:text-black` so `<option>` elements in dark-panel dropdowns don't need individual `text-black` overrides. Hex constants for non-CSS contexts (React Flow node data, inline styles) live in `lib/constants.ts`, including `EDGE_COLOR` — a status-keyed map of dependency edge colors.
 
 ### Assignee Display Convention
 
 Assignee/helper person representation follows a unified convention across the app:
 
-- **Tables** (Tasks, Issues, Questions) and **Timeline nodes**: show **initials** derived from the person's full name (e.g. "B.S" for "Björn Schmidt") via `getInitials()` in `lib/format.ts`.
+- **Tables** (Tasks, Issues, Questions) and **Timeline nodes**: show **initials** derived from the person's full name (e.g. "B.S" for "Björn Schmidt") via `getInitials()` in `lib/format.ts`. Timeline node badges use the helper's custom `color` from `helpers.json` (falling back to `DEFAULT_ASSIGNEE_COLOR`).
 - **Detail panels** (TaskDetail, ItemDetailShell): show **"Name (Initials)"** (e.g. "Björn Schmidt (B.S)") for full clarity.
 - **Helper List view**: the only place that shows the raw **helper ID** alongside the resolved name.
-- **Filter panels**: show full names for checkbox labels.
+- **Filter panels**: show **colored dot + full name** (via `PersonBadge`), visually matching the `GroupBadge` pattern for groups. The dot color comes from the helper's `color` field.
 
 The raw helper ID is never displayed to users outside the Helper List view. Internally, all data still stores helper IDs; the display format is resolved at render time.
 
+### Helper Colors
+
+Each helper in `helpers.json` has an optional `color` field (hex string). This color is used:
+- In `AssigneeBadge` on timeline nodes (badge background)
+- In `PersonBadge` in filter panels (colored dot)
+- Falls back to `DEFAULT_ASSIGNEE_COLOR` (green-700) when empty/missing.
+
+The color is editable via a native color picker in the Helpers view (`EditableRecordTable` supports a `fieldTypes` prop to render `<input type="color">` for specific fields).
+
+### Centralized Constants (DRY)
+
+`lib/constants.ts` centralizes values used across multiple files:
+- `TASK_STATUSES` — canonical ordered list of all `TaskStatus` values
+- `TASK_STATUS_OPTIONS` — pre-formatted `{ label, value }` pairs for `FilterToggleGroup`
+- `formatStatus(status)` — converts `"in_progress"` → `"in progress"` (replaces scattered `.replace("_", " ")` calls)
+- `NEW_GROUP_SENTINEL` — sentinel for "New group…" dropdown option (used by TaskDetail + AddTaskDialog)
+- Color constants: `DEFAULT_GROUP_COLOR`, `DEFAULT_ASSIGNEE_COLOR`, `AXIS_COLOR`, `EDGE_COLOR`
+
 ### Inline Table Editing
 
-The Tasks table view provides direct inline editing for the **assignee** field. The assignee column renders a native `<select>` dropdown (with click propagation stopped to avoid triggering row selection). Options show initials; the selected value persists immediately via `updateTask`. This allows quick assignee changes without opening the detail panel.
+The Tasks table view provides direct inline editing for both the **assignee** and **status** fields. Both columns render native `<select>` dropdowns (with click propagation stopped to avoid triggering row selection). Assignee options show initials; status options use `TASK_STATUSES` from `constants.ts`. Both use the shared `.select-table` CSS class plus a dynamic `statusBorderClass` for status-colored borders. All changes persist immediately via `updateTask`.
 
 ### Shared UI Primitives
 
-`IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, `GroupBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each. `GroupBadge` renders a colored circle indicator alongside the group path string (e.g. "pferd/feeding") and is used consistently in the task table, filter panel, and anywhere groups are displayed.
+`IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, `PersonBadge`, `GroupBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each. `GroupBadge` renders a colored circle indicator alongside the group path string (e.g. "pferd/feeding"); `PersonBadge` mirrors this pattern for people (colored dot + name). Both are used consistently in filter panels for visual uniformity between groups and people.
 
 ### External Change Detection
 

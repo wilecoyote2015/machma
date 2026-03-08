@@ -16,6 +16,8 @@ export interface Helper {
   email: string;
   phone: string;
   address: string;
+  /** Optional hex color for display in badges and filters (e.g. "#3B82F6") */
+  color: string;
 }
 
 /** An external contact/organisation (from external_entities.json), keyed by short ID */

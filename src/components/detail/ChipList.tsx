@@ -89,9 +89,9 @@ export function ChipList({
               className="select-panel w-full text-xs"
               autoFocus
             >
-              <option value="" className="text-black">Select...</option>
+              <option value="">Select...</option>
               {availableSuggestions.map((s) => (
-                <option key={s} value={s} className="text-black">
+                <option key={s} value={s}>
                   {renderLabel ? renderLabel(s) : s}
                 </option>
               ))}

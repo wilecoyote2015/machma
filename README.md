@@ -42,6 +42,8 @@ A React Flow canvas showing tasks as nodes positioned on a vertical date axis. E
 
 **Interactive dependency editing**: Drag from a node's bottom handle to another node's top handle to create a dependency. Select a dependency edge and press Delete/Backspace to remove it. Connection validation prevents self-references and duplicates.
 
+**Stable timeline axis**: The vertical date axis always spans the full date range across all tasks, regardless of active filters. This means task Y positions and the timeline itself stay fixed when toggling filters — the user always keeps temporal orientation. Filtered-out tasks simply disappear from the canvas; they don't shift the remaining nodes' positions.
+
 ### Tasks
 A sortable table of all tasks. Click column headers to sort. Columns: title, group (color dot), deadline, assignee (inline editable dropdown showing initials), helpers (assigned/needed), status (badge), issues, questions, and a truncated description preview. The assignee column is directly editable — click the dropdown to change the assignee without opening the detail panel. Click a row to open the task detail panel.
 
@@ -55,7 +57,7 @@ A flat sortable table of all questions across all tasks. Each row represents one
 A task-centric view for managing helper assignments. Shows all tasks that require helpers as individual cards, sorted by deadline. Each card displays the task header (group, title, deadline, status, and a green/amber fill indicator showing assigned vs. required helpers). Below the header, an editable "required helpers" field and a table of assigned helpers (with remove buttons) allow quick management. A dropdown adds unassigned helpers. Clicking a task card header opens the task detail panel. The shared filter panel (groups, deadline, status, tags, etc.) applies to the task list.
 
 ### Helpers
-Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, email, phone, and address.
+Inline-editable table for managing internal helpers (`helpers.json`). Add, edit, or remove people with name, email, phone, address, and a custom display color (via color picker). The helper's color is used for their assignee badge on timeline nodes and their dot indicator in filter panels.
 
 ### Entities
 Inline-editable table for managing external contacts and organizations (`external_entities.json`).
@@ -76,6 +78,7 @@ Assignee and Helpers are independent filters — Assignee matches the task's pri
 
 ### Task Detail Panel
 Clicking a task (node or table row) opens the right detail panel with collapsible sections:
+- **Title**: editable inline at the top of the panel
 - **Metadata**: deadline, status, assignee, group (dropdown selector — changing group moves the file on disk)
 - **Helpers**: required count + assigned helper chips with add/remove
 - **Relations**: dependencies, tags, external entities (collapsed by default)
@@ -131,7 +134,7 @@ The new group directory and `group.json` are created on disk immediately.
 
 ### `helpers.json`
 
-A map keyed by short identifier. Each entry has: `name`, `email`, `phone`, `address`.
+A map keyed by short identifier. Each entry has: `name`, `email`, `phone`, `address`, `color` (optional hex color for display badges).
 
 ### `external_entities.json`
 

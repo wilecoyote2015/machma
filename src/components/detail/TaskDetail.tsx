@@ -17,15 +17,11 @@ import { MarkdownBlock } from "@/components/common/MarkdownBlock";
 import { CreateGroupDialog } from "@/components/common/CreateGroupDialog";
 import { resolveDeadline, formatDateTime } from "@/lib/dates";
 import { getInitials } from "@/lib/format";
-
-const STATUS_OPTIONS: TaskStatus[] = ["todo", "in_progress", "finished", "cancelled"];
+import { TASK_STATUSES, formatStatus, NEW_GROUP_SENTINEL } from "@/lib/constants";
 
 interface TaskDetailProps {
   task: Task;
 }
-
-/** Sentinel value used as the "New group..." option in the group dropdown */
-const NEW_GROUP_SENTINEL = "__new_group__";
 
 export function TaskDetail({ task }: TaskDetailProps) {
   const project = useProjectStore((s) => s.project)!;
@@ -53,8 +49,13 @@ export function TaskDetail({ task }: TaskDetailProps) {
   return (
     <div className="space-y-1 text-white">
       {/* ── Header ───────────────────────────────────────── */}
-      <div className="flex items-start justify-between pb-2">
-        <h2 className="text-xl font-bold">{task.title}</h2>
+      <div className="flex items-start justify-between gap-2 pb-2">
+        <input
+          value={task.title}
+          onChange={(e) => updateField("title", e.target.value)}
+          className="flex-1 bg-transparent text-xl font-bold text-white placeholder-white/50 focus:outline-none"
+          placeholder="Task title"
+        />
         <button onClick={() => selectTask(null)} className="text-white/70 hover:text-white" title="Close">✕</button>
       </div>
 
@@ -78,8 +79,8 @@ export function TaskDetail({ task }: TaskDetailProps) {
               onChange={(e) => updateField("status", e.target.value as TaskStatus)}
               className="select-panel flex-1"
             >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s} className="text-black">{s.replace("_", " ")}</option>
+              {TASK_STATUSES.map((s) => (
+                <option key={s} value={s}>{formatStatus(s)}</option>
               ))}
             </select>
           </div>
@@ -90,11 +91,11 @@ export function TaskDetail({ task }: TaskDetailProps) {
               onChange={(e) => updateField("assignee", e.target.value)}
               className="select-panel flex-1"
             >
-              <option value="" className="text-black">—</option>
+              <option value="">—</option>
               {helperIds.map((id) => {
                 const name = project.helpers[id]!.name;
                 return (
-                  <option key={id} value={id} className="text-black">
+                  <option key={id} value={id}>
                     {name} ({getInitials(name)})
                   </option>
                 );
@@ -114,9 +115,9 @@ export function TaskDetail({ task }: TaskDetailProps) {
               }}
               className="select-panel flex-1"
             >
-              <option value={NEW_GROUP_SENTINEL} className="text-black font-medium">+ New group…</option>
+              <option value={NEW_GROUP_SENTINEL} className="font-medium">+ New group…</option>
               {project.groups.map((g) => (
-                <option key={g.path} value={g.path} className="text-black">{g.path}</option>
+                <option key={g.path} value={g.path}>{g.path}</option>
               ))}
             </select>
           </div>

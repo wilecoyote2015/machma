@@ -1,4 +1,5 @@
 import type { TaskStatus } from "@/types";
+import { formatStatus } from "@/lib/constants";
 
 /**
  * Shared status display. Renders as:
@@ -23,7 +24,7 @@ const BORDER_STYLES: Record<TaskStatus, string> = {
 export function StatusBadge({ status }: { status: TaskStatus }) {
   return (
     <span className={`rounded px-2 py-0.5 text-xs font-medium ${BADGE_STYLES[status]}`}>
-      {status.replace("_", " ")}
+      {formatStatus(status)}
     </span>
   );
 }

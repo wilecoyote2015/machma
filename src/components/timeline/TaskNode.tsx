@@ -29,6 +29,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
     hasUnresolvedIssues,
     hasUnansweredQuestions,
     assigneeName,
+    assigneeColor,
   } = data as TaskNodeData;
 
   const dateStr = resolvedDate ? formatDate(resolvedDate) : task.deadline || "no date";
@@ -50,7 +51,7 @@ function TaskNodeComponent({ data, selected }: NodeProps) {
 
       {assigneeName && (
         <div className="mt-1">
-          <AssigneeBadge label={assigneeName} variant="dark" />
+          <AssigneeBadge label={assigneeName} variant="dark" color={assigneeColor || undefined} />
         </div>
       )}
 

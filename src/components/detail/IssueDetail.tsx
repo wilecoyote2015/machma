@@ -72,9 +72,9 @@ export function IssueDetail({ task, issueIndex, onClose }: IssueDetailProps) {
               onChange={(e) => updateIssue({ ...issue, assignee: e.target.value })}
               className="select-panel flex-1"
             >
-              <option value="" className="text-black">—</option>
+              <option value="">—</option>
               {helperIds.map((id) => (
-                <option key={id} value={id} className="text-black">
+                <option key={id} value={id}>
                   {id} ({project.helpers[id]!.name})
                 </option>
               ))}

@@ -39,9 +39,9 @@ export function IssueItem({ issue, helperIds, onUpdate, onRemove }: IssueItemPro
           onChange={(e) => onUpdate({ ...issue, assignee: e.target.value })}
           className="select-panel text-xs"
         >
-          <option value="" className="text-black">—</option>
+          <option value="">—</option>
           {helperIds.map((id) => (
-            <option key={id} value={id} className="text-black">{id}</option>
+            <option key={id} value={id}>{id}</option>
           ))}
         </select>
       </div>
