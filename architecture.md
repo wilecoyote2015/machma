@@ -99,7 +99,7 @@ src/
 │   │   └── layout.ts                 # Smart layout: date→Y mapping, group→X columns, tick generation
 │   │
 │   └── table/
-│       └── TaskTableView.tsx         # Sortable task table wrapped in ViewLayout
+│       └── TaskTableView.tsx         # Sortable "Tasks" table wrapped in ViewLayout
 ```
 
 ## Key Design Decisions
