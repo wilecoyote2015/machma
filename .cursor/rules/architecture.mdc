@@ -2,5 +2,5 @@
 alwaysApply: true
 ---
 
-Always update the document @architecture.md after you completed a task in order to keep track of the current code architecture.
+Always update the document @architecture.md in project root after you completed a task in order to keep track of the current code architecture.
 Write the architecture in a way that an expert software developer who does not have any knowledge of the code base can get a throughout understanding of the codebase, architecture and design decisions.
