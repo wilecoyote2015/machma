@@ -45,19 +45,20 @@ export function FilterPanelShell({
   children,
 }: FilterPanelShellProps) {
   return (
-    <div className="space-y-1 text-white">
-      {hasActiveFilters && (
-        <div className="flex justify-end pb-1">
-          <button
-            onClick={onClearAll}
-            className="text-xs text-white/70 underline hover:text-white"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
-      {children}
-    </div>
+		<div className="space-y-1 text-white ">
+			<div className="h-4  pb-1">
+				{hasActiveFilters && (
+					<div className="flex justify-end">
+						<button
+							onClick={onClearAll}
+							className="text-xs text-white/70 underline hover:text-white">
+							Clear all
+						</button>
+					</div>
+				)}
+			</div>
+			{children}
+		</div>
   );
 }
 
