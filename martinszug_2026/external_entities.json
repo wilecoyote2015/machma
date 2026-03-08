@@ -1,0 +1,130 @@
+{
+    "stadt_essen_koordinierung": {
+        "name": "Stadt Essen Koordinierungsstelle",
+        "description": "Fuer Antrag",
+        "type": "organization",
+        "email": "koordinierung-veranstaltungen@essen-de",
+        "phone": "0201-88-66521",
+        "address": "Essen"
+    },
+    "baecker_peter": {
+        "name": "Bäcker Peter OHG",
+        "description": "",
+        "type": "organization",
+        "email": "info@baecker-peter.de",
+        "phone": "0201-862-333-0",
+        "address": "Essen"
+    },
+    "marie_juchaczheim": {
+        "name": "Marie-Jucharzc-Heim",
+        "description": "Herr Sümnik - Bescheid geben fuer Martnszug!",
+        "type": "organization",
+        "email": "andreas.suemnik@awo-essen.de",
+        "phone": "0201-87160",
+        "address": "Essen"
+    },
+    "julian_polizei": {
+        "name": "Julian Polizei",
+        "description": "Kontakt finden",
+        "type": "person",
+        "email": "???",
+        "phone": "",
+        "address": "Essen"
+    },
+    "polizei_mh_gerlach": {
+        "name": "Polizei Margaretenhöhe - Thorsten Gerlach",
+        "description": "Nicht Aktuell. Julian ist aktueller Anspr.",
+        "type": "person",
+        "email": "thorsten.gerlach@polizei.nrw.de",
+        "phone": "0201-829-3297",
+        "address": "Essen"
+    },
+    "polizei_mh_eckart": {
+        "name": "Polizei Margaretenhöhe - Frank Eckart",
+        "description": "Nicht Aktuell",
+        "type": "person",
+        "email": "frank.eckart@polizei.nrw.de",
+        "phone": "0201-829-3271",
+        "address": "Essen"
+    },
+    "bv3_foelster": {
+        "name": "BV3 Michael Fölster",
+        "description": "Antrag auf Zuschuss - Philipp fragen, ob noch aktuell",
+        "type": "person",
+        "email": "michael.foelster@ratsangelegenheiten.essen.de",
+        "phone": "0201-88-15120",
+        "address": "Essen"
+    },
+    "gge_forstverwaltung": {
+        "name": "Grün & Gruga Forstverwaltung",
+        "description": "Waldwege",
+        "type": "organization",
+        "email": "forstverwaltung@gge.essen.de",
+        "phone": "0201-880",
+        "address": "Essen"
+    },
+    "gge_gruenflaechen": {
+        "name": "Grün & Gruga",
+        "description": "Rasenpflege",
+        "type": "organization",
+        "email": "gruenflaechen.suedwest@gge.essen.de",
+        "phone": "0201-8867355",
+        "address": "Essen"
+    },
+    "schoenebecker_blasorchester": {
+        "name": "Schönebecker Blasorchester",
+        "description": "Phillip Kaldenhoff - 2026 Schon gebucht",
+        "type": "organization",
+        "email": "pkaldenhoff@icloud.com",
+        "phone": "",
+        "address": "Essen"
+    },
+    "fanfarencorps_moelmsche": {
+        "name": "Fanfarencorps Mölmsche Houltköpp 1955 e.V.",
+        "description": "Björn Espelmann - 2026 Ausgebucht",
+        "type": "organization",
+        "email": "björn.espelmann@fc-mh.de",
+        "phone": "01578-0660539",
+        "address": "Mülheim"
+    },
+    "jmc_schonnebeck": {
+        "name": "Jugend-Musik-Corps Essen Schonnebeck 1986",
+        "description": "2026 schon gebucht",
+        "type": "organization",
+        "email": "alexleonie@yahoo.de",
+        "phone": "0201-75866152",
+        "address": "Essen"
+    },
+    "reitstall_lugge": {
+        "name": "Reit-und Fahrstall Hans Lugge",
+        "description": "Fragen, ob wir schimmel bekommen.",
+        "type": "organization",
+        "email": "info@reitstall-lugge",
+        "phone": "0208-71498",
+        "address": "Mülheim"
+    },
+    "dominik_mantz": {
+        "name": "Dominik Mantz",
+        "description": "2026 nicht dabei; Trompeter un. Freund Schüler",
+        "type": "person",
+        "email": "",
+        "phone": "0177-7558905",
+        "address": "Essen"
+    },
+    "karnevalsverein_werden": {
+        "name": "Karnevallsverein Werden",
+        "description": "Lars Wittstock - 2026 schon gebucht",
+        "type": "organization",
+        "email": "",
+        "phone": "0176-63443084",
+        "address": "Essen"
+    },
+    "jagdhornblaeser_halodrio": {
+        "name": "Jagdhornbläser Halodrio",
+        "description": "Frau Kreisl - 6 Wochen vorher vorher anrufen und buchen",
+        "type": "organization",
+        "email": "",
+        "phone": "0174-1512124",
+        "address": "Essen"
+    }
+}
