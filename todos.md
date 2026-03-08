@@ -2,6 +2,5 @@
 - Milestone Functionality: a milestone is one md document in a "milestones" directory. Milestone will be drawn as horizontal line in the timeline view and at timeline, there is an icon to click to open milestone details. Milestone hline is drawn so that it is below the last node of that day.
 - make project metadata an md file instead of json. The file shall be similar to tasks: first heading is the project name. Anchor date is the second section. Then there is a description and also a questions section, like in taks (but no issues etc.). The questions from here show up in the questions view table with - in the task column.
 - "Project" view for editing project metadata.
-- task start time / date refinement: if start time is set, but not start date, assume it is the same day as the deadline. If start date is set, but not start time, assume it is 00:00.
-- Vertical drag-and-drop of nodes to set deadline: snaps to days in normal view and 15 mins in day view. Handle tasks with start time and date correctly! dragging the node sets the star time here and the offset to the deadline is kept from before, so that task length stays the same.
-- Sorting in sortable tables: secondary sorting is always by name
+- Sorting in sortable tables: secondary sorting should maybe always by name? Or dependent on what is sorted by?
+- Align question format in MD with issue format, also allowing description that then will be shown in the question detail panel and question table description column.

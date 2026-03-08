@@ -14,7 +14,7 @@ function TimelineTickNodeComponent({ data }: NodeProps) {
   return (
     <div className="flex items-center" style={{ pointerEvents: "none" }}>
       {/* Date label */}
-      <div className="pr-2 text-xs font-medium text-gray-500 whitespace-nowrap">
+      <div className="pr-2 text-xl font-medium text-gray-500 whitespace-nowrap">
         {label}
       </div>
       {/* Horizontal tick mark */}
