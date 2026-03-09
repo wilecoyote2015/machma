@@ -22,6 +22,8 @@ interface ProjectStore {
 
   // ── Actions ──────────────────────────────────────────────
   openProject: () => Promise<void>;
+  /** Open a project directly from a known absolute directory path (no dialog). */
+  openProjectFromPath: (dirPath: string) => Promise<void>;
   reloadProject: () => Promise<void>;
   selectTask: (taskId: string | null) => void;
   setActiveView: (view: "timeline" | "table" | "issues" | "questions" | "helperlist" | "helpers" | "entities") => void;
@@ -72,6 +74,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const dirHandle = await openProjectDirectory();
     const project = await loadProject(dirHandle);
     set({ dirHandle, project, selectedTaskId: null, filters: emptyFilters() });
+    // Persist to the recent-projects list so it shows up on the picker screen.
+    await window.electronAPI.pushRecentProject({
+      path: dirHandle,
+      name: project.meta.name,
+      openedAt: Date.now(),
+    });
+  },
+
+  openProjectFromPath: async (dirPath: string) => {
+    const project = await loadProject(dirPath);
+    set({ dirHandle: dirPath, project, selectedTaskId: null, filters: emptyFilters() });
+    // Update the recent-projects list (bumps timestamp to top of the list).
+    await window.electronAPI.pushRecentProject({
+      path: dirPath,
+      name: project.meta.name,
+      openedAt: Date.now(),
+    });
   },
 
   reloadProject: async () => {

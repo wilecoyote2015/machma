@@ -296,6 +296,17 @@ The Tasks table view provides direct inline editing for both the **assignee** an
 
 `IssueIndicator`, `QuestionIndicator`, `StatusBadge`, `AssigneeBadge`, `PersonBadge`, `GroupBadge`, and `FilterToggleGroup` are small, single-purpose components in `components/ui/` that replace previously duplicated markup across 3-4 files each. `GroupBadge` renders a colored circle indicator alongside the group path string (e.g. "pferd/feeding"); `PersonBadge` mirrors this pattern for people (colored dot + name). Both are used consistently in filter panels for visual uniformity between groups and people.
 
+### Recent Projects Persistence
+
+When a project is opened (either via the OS dialog or by clicking a recent entry), the project path, display name, and timestamp are recorded in `<userData>/recent-projects.json` via two IPC handlers registered in `electron/main.ts`:
+
+- **`app:getRecentProjects`** — reads the JSON file and returns the list (up to 5 entries, newest first). Returns `[]` if the file doesn't exist yet.
+- **`app:pushRecentProject`** — prepends the new entry, deduplicates by path (removes an older entry for the same directory if present), truncates to 5, and overwrites the file.
+
+`ProjectPicker` loads the list via `window.electronAPI.getRecentProjects()` on mount and renders it below the "Open Project Folder" button. Clicking a recent entry calls `openProjectFromPath(path)` in the Zustand store, which skips the OS dialog, loads the project directly, and updates the recent list. Both `openProject` (dialog) and `openProjectFromPath` push to the recent list after a successful load.
+
+The `RecentProject` interface (`{ path, name, openedAt }`) is declared in `src/vite-env.d.ts` (renderer side) and mirrored as a local interface in `electron/main.ts` (main process side) — they are kept in sync manually since the two TypeScript configs (`tsconfig.json` vs. `tsconfig.node.json`) compile each side independently.
+
 ### External Change Detection
 
 A polling hook (`useFileWatcher`) builds a `lastModified` timestamp snapshot every 3 seconds. If any file changed externally, the full project is reloaded. This is lightweight and handles the case where files are edited in a text editor or git operations occur.

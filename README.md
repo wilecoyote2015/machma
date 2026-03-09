@@ -22,7 +22,7 @@ npm install
 npm run dev   # Launches Electron in dev mode with Vite HMR
 ```
 
-Click **"Open Project Folder"** and select a directory containing a `project.json` file (see [example_project/](example_project/) for a working example).
+Click **"Open Project Folder"** and select a directory containing a `project.json` file (see [example_project/](example_project/) for a working example). The 5 most recently opened projects are shown on the landing screen for quick one-click access; this list is persisted across restarts in Electron's user-data directory.
 
 ### Building a distributable
 

@@ -2,10 +2,30 @@
 const electron = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
+const MAX_RECENT = 5;
+function recentProjectsFile() {
+  return path.join(electron.app.getPath("userData"), "recent-projects.json");
+}
+async function loadRecentProjects() {
+  try {
+    const raw = await fs.readFile(recentProjectsFile(), "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+async function saveRecentProject(entry) {
+  const existing = await loadRecentProjects();
+  const deduped = existing.filter((e) => e.path !== entry.path);
+  const updated = [entry, ...deduped].slice(0, MAX_RECENT);
+  await fs.writeFile(recentProjectsFile(), JSON.stringify(updated, null, 2), "utf-8");
+}
 function createWindow() {
   const win = new electron.BrowserWindow({
     width: 1400,
     height: 900,
+    // The app ships its own nav bar, so the native OS menu bar is hidden.
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -101,4 +121,9 @@ function registerIpcHandlers() {
       return false;
     }
   });
+  electron.ipcMain.handle("app:getRecentProjects", () => loadRecentProjects());
+  electron.ipcMain.handle(
+    "app:pushRecentProject",
+    (_event, entry) => saveRecentProject(entry)
+  );
 }

@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import type { Task, TaskStatus } from "@/types";
 import { useProjectStore } from "@/stores/project-store";
 import { applyFilters } from "@/lib/filters";
-import { resolveDeadline, formatDate, formatDateTime } from "@/lib/dates";
+import { resolveDeadline, resolveStartDate, formatDate, formatDateTime } from "@/lib/dates";
 import { getInitials } from "@/lib/format";
 import { DEFAULT_GROUP_COLOR, TASK_STATUSES, formatStatus } from "@/lib/constants";
 import { ViewLayout } from "@/components/common/ViewLayout";
@@ -50,7 +50,15 @@ export function TaskTableView() {
     return filtered.map((task) => ({
       task,
       resolvedDeadline: resolveDeadline(task.deadline, anchorDate, task.time),
-      resolvedStartDate: resolveDeadline(task.start_date, anchorDate, task.start_time),
+      // Use resolveStartDate so that a task with only start_time (no start_date)
+      // correctly inherits the deadline's date as the start date for display.
+      resolvedStartDate: resolveStartDate(
+        task.start_date,
+        task.start_time,
+        task.deadline,
+        anchorDate,
+        task.start_time,
+      ),
       groupColor: groupColorMap.get(task.group) ?? DEFAULT_GROUP_COLOR,
       hasUnresolvedIssues: task.issues.some((i) => !i.assignee && !i.solution),
       hasUnansweredQuestions: task.questions.some((q) => !q.answer.trim()),

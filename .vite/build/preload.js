@@ -8,5 +8,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   listDirectory: (root, subPath) => electron.ipcRenderer.invoke("fs:listDirectory", root, subPath),
   ensureDirectory: (root, rel) => electron.ipcRenderer.invoke("fs:ensureDir", root, rel),
   getTimestamp: (root, rel) => electron.ipcRenderer.invoke("fs:getTimestamp", root, rel),
-  fileExists: (root, rel) => electron.ipcRenderer.invoke("fs:fileExists", root, rel)
+  fileExists: (root, rel) => electron.ipcRenderer.invoke("fs:fileExists", root, rel),
+  getRecentProjects: () => electron.ipcRenderer.invoke("app:getRecentProjects"),
+  pushRecentProject: (entry) => electron.ipcRenderer.invoke("app:pushRecentProject", entry)
 });

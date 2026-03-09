@@ -14,6 +14,48 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 
+// ── Recent-projects persistence ───────────────────────────────────────────
+
+/** One entry in the recently-opened projects list. */
+interface RecentProject {
+  /** Absolute path to the project directory. */
+  path: string;
+  /** Human-readable name from project.json. */
+  name: string;
+  /** Unix timestamp (ms) when the project was last opened. */
+  openedAt: number;
+}
+
+/** Maximum number of recent projects to retain. */
+const MAX_RECENT = 5;
+
+/** Absolute path to the file that stores the recent-projects list. */
+function recentProjectsFile(): string {
+  return path.join(app.getPath("userData"), "recent-projects.json");
+}
+
+/** Load the current recent-projects list from disk (returns [] on any error). */
+async function loadRecentProjects(): Promise<RecentProject[]> {
+  try {
+    const raw = await fs.readFile(recentProjectsFile(), "utf-8");
+    return JSON.parse(raw) as RecentProject[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Prepend `entry` to the recent-projects list, deduplicate by path,
+ * keep only the newest `MAX_RECENT` entries, then persist to disk.
+ */
+async function saveRecentProject(entry: RecentProject): Promise<void> {
+  const existing = await loadRecentProjects();
+  // Remove any previous entry for the same path so it bubbles to the top.
+  const deduped = existing.filter((e) => e.path !== entry.path);
+  const updated = [entry, ...deduped].slice(0, MAX_RECENT);
+  await fs.writeFile(recentProjectsFile(), JSON.stringify(updated, null, 2), "utf-8");
+}
+
 // Forge Vite plugin injects these globals at build time:
 //   MAIN_WINDOW_VITE_DEV_SERVER_URL – dev server URL (undefined in production)
 //   MAIN_WINDOW_VITE_NAME           – renderer entry name (for production path)
@@ -26,6 +68,8 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
+    // The app ships its own nav bar, so the native OS menu bar is hidden.
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -160,4 +204,13 @@ function registerIpcHandlers(): void {
       return false;
     }
   });
+
+  /** Return the list of recently opened projects (newest first). */
+  ipcMain.handle("app:getRecentProjects", () => loadRecentProjects());
+
+  /** Add or update an entry in the recent-projects list and persist it. */
+  ipcMain.handle(
+    "app:pushRecentProject",
+    (_event, entry: RecentProject) => saveRecentProject(entry),
+  );
 }

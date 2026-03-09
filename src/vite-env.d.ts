@@ -7,6 +7,17 @@
  * Every method here maps 1-to-1 to an ipcMain.handle handler in
  * electron/main.ts.  The implementations use Node.js fs/promises.
  */
+
+/** One entry in the recently-opened projects list (mirrors the type in main.ts). */
+interface RecentProject {
+  /** Absolute path to the project directory. */
+  path: string;
+  /** Human-readable name from project.json. */
+  name: string;
+  /** Unix timestamp (ms) when the project was last opened. */
+  openedAt: number;
+}
+
 interface ElectronAPI {
   /**
    * Open an OS-native directory picker.
@@ -60,6 +71,17 @@ interface ElectronAPI {
    * Check whether a file exists relative to a project root.
    */
   fileExists(root: string, rel: string): Promise<boolean>;
+
+  /**
+   * Return the list of recently opened projects, newest first (up to 5).
+   */
+  getRecentProjects(): Promise<RecentProject[]>;
+
+  /**
+   * Record a newly opened project in the persistent recent-projects list.
+   * Deduplicates by path and keeps only the 5 most recent entries.
+   */
+  pushRecentProject(entry: RecentProject): Promise<void>;
 }
 
 interface Window {

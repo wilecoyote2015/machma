@@ -35,4 +35,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   fileExists: (root: string, rel: string) =>
     ipcRenderer.invoke("fs:fileExists", root, rel),
+
+  getRecentProjects: () =>
+    ipcRenderer.invoke("app:getRecentProjects"),
+
+  pushRecentProject: (entry: { path: string; name: string; openedAt: number }) =>
+    ipcRenderer.invoke("app:pushRecentProject", entry),
 });
