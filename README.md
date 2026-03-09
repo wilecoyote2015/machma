@@ -13,18 +13,72 @@ Machma is a lean, text-based task management tool for events and projects. It ru
 - **No backend**: Pure desktop app using Electron + Node.js `fs`. No server, no database, no Docker.
 - **Responsive**: Desktop three-panel layout with collapsible sidebars; mobile full-screen overlay panels.
 
-## Getting Started
+## Installation
 
-### Development
+### Prerequisites
+
+| Requirement | Minimum version | Notes |
+|-------------|-----------------|-------|
+| [Node.js](https://nodejs.org/) | 18 LTS | Includes `npm`. Use the LTS release for best compatibility. |
+| [git](https://git-scm.com/) | any recent | Only required to clone the repository. |
+
+### Install from a pre-built package
+
+Pre-built binaries for Linux, macOS, and Windows are attached to each [GitHub Release](../../releases). Download the package for your platform and install it:
+
+| Platform | File | How to install |
+|----------|------|----------------|
+| Linux (Debian/Ubuntu) | `machma_*.deb` | `sudo dpkg -i machma_*.deb` |
+| Linux (Fedora/RHEL)   | `machma-*.rpm` | `sudo rpm -i machma-*.rpm` |
+| macOS  | `machma-*.zip` | Unzip and drag `Machma.app` to `/Applications` |
+| Windows | `machma-*.exe` | Run the installer; a Start Menu entry is created |
+
+### Install from source
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/<owner>/machma.git
+cd machma
+
+# 2. Install dependencies (takes ~1–2 minutes on first run)
 npm install
-npm run dev   # Launches Electron in dev mode with Vite HMR
+
+# 3. Launch the app in development mode
+npm run dev
 ```
 
-Click **"Open Project Folder"** and select a directory containing a `project.json` file (see [example_project/](example_project/) for a working example). The 5 most recently opened projects are shown on the landing screen for quick one-click access; this list is persisted across restarts in Electron's user-data directory.
+> **Tip:** The `example_project/` directory included in the repository is a ready-to-use demo project. Point the app at it on first launch (see below).
 
-### Building a distributable
+## First Start
+
+1. **Launch the app** — either by running `npm run dev` (from source) or opening the installed application.
+2. **Open a project** — click **"Open Project Folder"** on the landing screen and select a directory that contains a `project.json` file.
+   - To explore a working demo right away, select the **`example_project/`** folder inside the cloned repository.
+3. **Navigate** — the top navigation bar gives access to all seven views: Timeline, Tasks, Issues, Questions, Helper List, Helpers, and Entities.
+4. **Recent projects** — the last 5 opened project folders appear on the landing screen for quick one-click access. This list is persisted across restarts.
+
+### Creating your first project from scratch
+
+A Machma project is just a directory. The only required file is `project.json`:
+
+```json
+{
+  "name": "My Project",
+  "anchor_date": "2026-01-01"
+}
+```
+
+Create that file in an empty folder, open the folder in Machma, and start adding tasks via the **"+ New Task"** button in the top bar. Machma will create the necessary subdirectory structure for you as you add tasks and groups.
+
+## Development & Building
+
+### Running in development mode
+
+```bash
+npm run dev   # Launches Electron with Vite HMR (hot module replacement)
+```
+
+### Building a distributable package
 
 ```bash
 npm run make   # Packages for the current OS → out/make/
