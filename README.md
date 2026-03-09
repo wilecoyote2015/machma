@@ -7,7 +7,7 @@ At least, the Readme is not full of emoticons...
 
 ## Key Features
 
-- **Text-file based**: All project data is stored as `.md` and `.json` files. Edit them with any text editor, version-control with git, and use Machma's UI for visual management.
+- **Text-file based**: All project data is stored as `.md` and `.json` files. Edit them with any text editor, version-control with git, and use Machma's UI for visual management. This also enables to use any AI IDE to edit the project files to help managing the project.
 - **Timeline view**: Interactive graph showing tasks as colored nodes on a vertical timeline, with dependency arrows, pan/zoom, and smart density-aware spacing.
 - **Tasks view**: Sortable task table with columns for title, group, deadline, assignee, helpers, status, issues, questions, and a truncated description preview.
 - **Rich filtering**: Filter by deadline proximity, status, tags, groups, helpers, unresolved issues, and unanswered questions.
