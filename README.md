@@ -31,7 +31,7 @@ Pre-built binaries for Linux, macOS, and Windows are attached to each [GitHub Re
 | Linux (Debian/Ubuntu) | `machma_*.deb` | `sudo dpkg -i machma_*.deb` |
 | Linux (Fedora/RHEL)   | `machma-*.rpm` | `sudo rpm -i machma-*.rpm` |
 | macOS  | `machma-*.zip` | Unzip and drag `Machma.app` to `/Applications` |
-| Windows | `machma-*.exe` | Run the installer; a Start Menu entry is created |
+| Windows | `machma-*.exe` | Run the `.exe` — it silently installs and launches the app |
 
 ### Install from source
 
@@ -87,7 +87,7 @@ npm run make   # Packages for the current OS → out/make/
 Output artefacts:
 | Platform | Output                        |
 |----------|-------------------------------|
-| Windows  | Squirrel installer (`.exe`)   |
+| Windows  | Squirrel `.exe` (silent install + launch) |
 | macOS    | ZIP archive (`.zip`)          |
 | Linux    | `.deb` and `.rpm` packages    |
 
