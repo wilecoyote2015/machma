@@ -20,6 +20,11 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  # Required for electron-forge publisher-github to create releases and
+  # upload artifacts via GITHUB_TOKEN.
+  contents: write
+
 jobs:
   release:
     name: Build & publish (${{ matrix.os }})
