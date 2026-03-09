@@ -82,7 +82,7 @@ const config: ForgeConfig = {
          * The publisher reads GITHUB_TOKEN from the environment.
          */
         repository: {
-          owner: "GITHUB_OWNER",
+          owner: "wilecoyote2015",
           name: "machma",
         },
         /** Create a draft release so you can review before publishing. */
