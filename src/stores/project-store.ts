@@ -6,14 +6,15 @@
 
 import { create } from "zustand";
 import type { Project, Task, TaskGroup, GroupMeta, FilterState, TaskStatus } from "@/types";
-import { openProjectDirectory, writeTextFile, writeJsonFile, ensureDirectory } from "@/lib/fs";
+import { openProjectDirectory, writeTextFile, writeJsonFile, deleteFile, ensureDirectory } from "@/lib/fs";
 import { loadProject } from "@/lib/project-loader";
 import { serializeTask } from "@/lib/serializer";
 
 // ── Store shape ────────────────────────────────────────────────────
 
 interface ProjectStore {
-  dirHandle: FileSystemDirectoryHandle | null;
+  /** Absolute path to the open project directory (replaces FileSystemDirectoryHandle). */
+  dirHandle: string | null;
   project: Project | null;
   selectedTaskId: string | null;
   activeView: "timeline" | "table" | "issues" | "questions" | "helperlist" | "helpers" | "entities";
@@ -97,15 +98,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ project: { ...project, tasks } });
 
     try {
-      // If group changed, delete the old file first
+      // If group changed, delete the old file before writing the new one.
       if (groupChanged) {
-        const tasksDir = await dirHandle.getDirectoryHandle("tasks");
-        const oldParts = oldTask.group.split("/");
-        let oldGroupDir: FileSystemDirectoryHandle = tasksDir;
-        for (const part of oldParts) {
-          oldGroupDir = await oldGroupDir.getDirectoryHandle(part);
-        }
-        await oldGroupDir.removeEntry(`${updatedTask.id}.md`);
+        await deleteFile(dirHandle, `tasks/${oldTask.group}/${updatedTask.id}.md`);
       }
 
       const filePath = `tasks/${updatedTask.group}/${updatedTask.id}.md`;
@@ -159,13 +154,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ project: { ...project, tasks }, selectedTaskId });
 
     try {
-      const tasksDir = await dirHandle.getDirectoryHandle("tasks");
-      const parts = task.group.split("/");
-      let groupDir: FileSystemDirectoryHandle = tasksDir;
-      for (const part of parts) {
-        groupDir = await groupDir.getDirectoryHandle(part);
-      }
-      await groupDir.removeEntry(`${task.id}.md`);
+      await deleteFile(dirHandle, `tasks/${task.group}/${task.id}.md`);
     } catch (e) {
       console.error("[store] Failed to delete task file:", e);
     }
@@ -181,13 +170,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ project: { ...project, groups: [...project.groups, newGroup] } });
 
     try {
-      // Create the directory tree under tasks/
-      const groupDir = await ensureDirectory(dirHandle, `tasks/${path}`);
-      // Write group.json with color and description
-      const fileHandle = await groupDir.getFileHandle("group.json", { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify(meta, null, 4) + "\n");
-      await writable.close();
+      // Create the directory tree under tasks/ and write group.json.
+      await ensureDirectory(dirHandle, `tasks/${path}`);
+      await writeJsonFile(dirHandle, `tasks/${path}/group.json`, meta);
     } catch (e) {
       console.error("[store] Failed to create group directory:", e);
     }

@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Release workflow for Machma
+#
+# Triggered by pushing a version tag (e.g. v0.2.0).
+# Runs electron-forge make on three platforms in parallel, then publishes all
+# artifacts to a GitHub Release draft via electron-forge publish.
+#
+# Prerequisites:
+#   1. Update forge.config.ts → publishers[0].config.repository with the
+#      correct GitHub owner / repo name.
+#   2. Push a tag:  git tag v0.2.0 && git push origin v0.2.0
+#      The release is created as a draft; publish it manually from GitHub.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Release
+
+on:
+  push:
+    # Only run on semver version tags
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Build & publish (${{ matrix.os }})
+
+    strategy:
+      # Build all platforms even if one fails
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ── 1. Source ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Runtime ───────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Use Node 22 LTS; supports require() of ES modules (needed by
+          # @electron-forge/plugin-vite when loading Vite 7).
+          node-version: 22
+          cache: npm
+
+      # ── 3. Dependencies ──────────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Build & package ───────────────────────────────────────────────
+      # `electron-forge make` compiles the main/preload/renderer with Vite,
+      # packages everything with @electron/packager, and produces the
+      # platform-specific distributor via the configured makers.
+      - name: Build and package
+        run: npm run make
+
+      # ── 5. Publish to GitHub Releases ────────────────────────────────────
+      # `electron-forge publish` uses the GitHub publisher configured in
+      # forge.config.ts.  GITHUB_TOKEN is injected automatically by Actions.
+      # All three platforms publish to the same draft release (identified by
+      # the version in package.json).
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish

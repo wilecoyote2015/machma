@@ -2,40 +2,58 @@
 
 ## Overview
 
-Machma is a **pure client-side SPA** (no backend, no database) built with Vite + React + TypeScript + Tailwind CSS. All data lives in plain text files (JSON + Markdown) inside a local project directory. The browser reads and writes these files directly via the **File System Access API** (Chromium only).
+Machma is a **cross-platform desktop app** (no backend, no database) built with Electron + Vite + React + TypeScript + Tailwind CSS. All data lives in plain text files (JSON + Markdown) inside a local project directory. The app reads and writes these files via Node.js `fs/promises` in the Electron main process, exposed to the renderer through a typed IPC bridge.
 
 ## Tech Stack
 
-| Layer              | Technology               | Purpose                                        |
-|--------------------|--------------------------|------------------------------------------------|
-| Build              | Vite 7                   | Bundler, dev server, HMR                       |
-| UI                 | React 19 + TypeScript    | Component framework                            |
-| Styling            | Tailwind CSS 4           | Utility-first CSS with `@theme` semantic tokens|
-| Graph/Timeline     | @xyflow/react (React Flow) 12 | Pan/zoom canvas with custom node rendering  |
-| State              | Zustand 5                | Single-store state management                  |
-| Markdown rendering | react-markdown 10        | Renders description/log/issue bodies           |
-| File I/O           | File System Access API   | Browser-native read/write to local directory   |
+| Layer              | Technology                    | Purpose                                        |
+|--------------------|-------------------------------|------------------------------------------------|
+| Desktop runtime    | Electron 40                   | Cross-platform app shell, native OS dialogs    |
+| Build / packaging  | Electron Forge 7 + Vite 7     | Bundler, dev server, HMR, distributables       |
+| UI                 | React 19 + TypeScript         | Component framework                            |
+| Styling            | Tailwind CSS 4                | Utility-first CSS with `@theme` semantic tokens|
+| Graph/Timeline     | @xyflow/react (React Flow) 12 | Pan/zoom canvas with custom node rendering     |
+| State              | Zustand 5                     | Single-store state management                  |
+| Markdown rendering | react-markdown 10             | Renders description/log/issue bodies           |
+| File I/O           | Node.js `fs/promises` via IPC | Main-process file read/write; typed bridge     |
 
 ## Data Flow
 
 ```
-User opens directory → File System Access API
-    → project-loader reads all JSON + MD files
+User clicks "Open Project Folder"
+    → window.electronAPI.openDirectory()     (renderer → IPC)
+    → dialog.showOpenDialog()                (Electron main, native dialog)
+    → returns absolute path string
+
+project-loader reads all JSON + MD files
+    → window.electronAPI.readFile(root, rel) (renderer → IPC → Node.js fs)
     → parser.ts converts each .md into a Task object
     → Zustand store populated with full Project model
     → React components render from store
 
 User edits in UI → store updated immediately
     → serializer.ts converts Task back to .md
-    → writeTextFile persists to disk
+    → window.electronAPI.writeFile(...)      (renderer → IPC → Node.js fs)
 
-File watcher (3s poll) → detects external lastModified changes
+File watcher (3s poll) → window.electronAPI.getTimestamp() for each file
+    → detects external lastModified changes
     → re-reads changed files → updates store
 ```
 
 ## Directory Structure
 
 ```
+electron/
+├── main.ts                           # Electron main process: BrowserWindow, IPC handlers (Node.js fs)
+└── preload.ts                        # contextBridge: exposes window.electronAPI to renderer
+
+forge.config.ts                       # Electron Forge: makers (deb/rpm/zip/squirrel), GitHub publisher
+vite.main.config.ts                   # Vite config for main process build
+vite.preload.config.ts                # Vite config for preload build
+vite.renderer.config.ts               # Vite config for renderer (was vite.config.ts)
+tsconfig.node.json                    # TypeScript config for Electron files (Node.js types, no DOM)
+.github/workflows/release.yml         # CI: build + publish on v* tag push (Linux, macOS, Windows)
+
 src/
 ├── main.tsx                          # ReactDOM entry point
 ├── App.tsx                           # Root: shows ProjectPicker or AppShell
@@ -117,9 +135,17 @@ src/
 
 ## Key Design Decisions
 
-### No Backend
+### Electron IPC File Bridge
 
-The File System Access API (`showDirectoryPicker`, `FileSystemFileHandle`) allows the browser to read/write local files directly. No server, no database, no API routes. The app is a static SPA served from `dist/` or `npm run dev`.
+All file I/O uses a three-layer pattern:
+
+1. **Renderer** calls `window.electronAPI.*` (typed interface in `vite-env.d.ts`).
+2. **Preload** (`electron/preload.ts`) forwards each call to the main process via `ipcRenderer.invoke`.
+3. **Main process** (`electron/main.ts`) executes the actual Node.js `fs/promises` operation and returns the result.
+
+`contextIsolation: true` and `nodeIntegration: false` are set on the BrowserWindow so the renderer cannot access Node.js or Electron APIs directly — everything goes through the typed bridge. This is both more secure and more portable than the previous File System Access API approach (which was Chromium-only).
+
+The previous `FileSystemDirectoryHandle` parameter type throughout the codebase is now a plain `string` (absolute directory path). The `src/lib/fs.ts` module exposes the same ergonomic helper functions (`readTextFile`, `writeTextFile`, `readJsonFile`, `writeJsonFile`, `deleteFile`, `listDirectoryRecursive`, etc.) but implemented via IPC instead of the browser API.
 
 ### MD as Serialization, Not Display
 
@@ -296,8 +322,9 @@ Groups correspond to subdirectories under `tasks/`. Each group has an optional `
 
 ```bash
 npm install
-npm run dev      # Vite dev server at localhost:5173
-npm run build    # Production build to dist/
+npm run dev      # Electron dev mode (Forge + Vite dev server with HMR)
+npm run make     # Build and package for the current platform → out/
+npm run publish  # Build, package, and publish to GitHub Releases (needs GITHUB_TOKEN)
 ```
 
-Open in Chrome/Edge. Click "Open Project Folder" and select a directory containing `project.json`.
+See [README.md](README.md) for full usage instructions and release workflow.

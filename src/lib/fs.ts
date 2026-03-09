@@ -1,149 +1,94 @@
 /**
- * Thin wrapper around the File System Access API.
- * Provides ergonomic helpers for reading/writing project files
- * via a user-selected directory handle.
+ * File system abstraction for the Electron renderer process.
+ *
+ * All functions delegate to `window.electronAPI`, which is exposed by the
+ * preload script (electron/preload.ts) via Electron's contextBridge.
+ * The main process (electron/main.ts) executes the actual Node.js fs calls.
+ *
+ * The public API mirrors the old File System Access API wrapper so that all
+ * callers (project-loader, project-store, watcher) need only a single type
+ * change: `FileSystemDirectoryHandle` → `string` (an absolute directory path).
  */
 
-/** Prompt the user to pick a project directory via the OS file picker. */
-export async function openProjectDirectory(): Promise<FileSystemDirectoryHandle> {
-  return await window.showDirectoryPicker({ mode: "readwrite" });
+/** Prompt the user to pick a project directory via the OS-native file dialog. */
+export async function openProjectDirectory(): Promise<string> {
+  const chosen = await window.electronAPI.openDirectory();
+  if (!chosen) throw new Error("No directory selected.");
+  return chosen;
+}
+
+/** Read a UTF-8 text file at `rel` inside the project root `root`. */
+export async function readTextFile(root: string, path: string): Promise<string> {
+  return window.electronAPI.readFile(root, path);
 }
 
 /**
- * Recursively resolve a nested directory path from a root handle.
- * E.g. resolveDir(root, "tasks/pferd") navigates root -> tasks -> pferd.
+ * Write UTF-8 `content` to `rel` inside the project root `root`.
+ * Missing parent directories are created automatically.
  */
-async function resolveDir(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<FileSystemDirectoryHandle> {
-  let handle = root;
-  for (const segment of path.split("/").filter(Boolean)) {
-    handle = await handle.getDirectoryHandle(segment);
-  }
-  return handle;
-}
-
-/** Read a text file relative to a directory handle. */
-export async function readTextFile(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<string> {
-  const parts = path.split("/");
-  const fileName = parts.pop()!;
-  const dir = parts.length > 0 ? await resolveDir(root, parts.join("/")) : root;
-  const fileHandle = await dir.getFileHandle(fileName);
-  const file = await fileHandle.getFile();
-  return file.text();
-}
-
-/** Write a text file relative to a directory handle (creates if missing). */
 export async function writeTextFile(
-  root: FileSystemDirectoryHandle,
+  root: string,
   path: string,
   content: string,
 ): Promise<void> {
-  const parts = path.split("/");
-  const fileName = parts.pop()!;
-  const dir = parts.length > 0 ? await resolveDir(root, parts.join("/")) : root;
-  const fileHandle = await dir.getFileHandle(fileName, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(content);
-  await writable.close();
+  return window.electronAPI.writeFile(root, path, content);
 }
 
-/** Read and parse a JSON file relative to a directory handle. */
-export async function readJsonFile<T>(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<T> {
+/** Read and parse a JSON file relative to the project root. */
+export async function readJsonFile<T>(root: string, path: string): Promise<T> {
   const text = await readTextFile(root, path);
   return JSON.parse(text) as T;
 }
 
-/** Write an object as formatted JSON to a file. */
+/** Serialise `data` to formatted JSON and write it to `rel` inside `root`. */
 export async function writeJsonFile(
-  root: FileSystemDirectoryHandle,
+  root: string,
   path: string,
   data: unknown,
 ): Promise<void> {
   await writeTextFile(root, path, JSON.stringify(data, null, 4) + "\n");
 }
 
-/** Check whether a file exists in the directory. */
-export async function fileExists(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<boolean> {
-  try {
-    await readTextFile(root, path);
-    return true;
-  } catch {
-    return false;
-  }
+/** Delete the file at `rel` inside the project root `root`. */
+export async function deleteFile(root: string, path: string): Promise<void> {
+  return window.electronAPI.deleteFile(root, path);
+}
+
+/** Check whether a file exists at `rel` inside the project root `root`. */
+export async function fileExists(root: string, path: string): Promise<boolean> {
+  return window.electronAPI.fileExists(root, path);
 }
 
 /**
- * Get the lastModified timestamp (ms since epoch) for a file.
- * Returns 0 if the file doesn't exist.
+ * Return the last-modified timestamp (ms since epoch) of a file.
+ * Returns 0 if the file does not exist.
  */
 export async function getFileTimestamp(
-  root: FileSystemDirectoryHandle,
+  root: string,
   path: string,
 ): Promise<number> {
-  try {
-    const parts = path.split("/");
-    const fileName = parts.pop()!;
-    const dir = parts.length > 0 ? await resolveDir(root, parts.join("/")) : root;
-    const fileHandle = await dir.getFileHandle(fileName);
-    const file = await fileHandle.getFile();
-    return file.lastModified;
-  } catch {
-    return 0;
-  }
+  return window.electronAPI.getTimestamp(root, path);
 }
 
 /**
- * Ensure a nested directory path exists, creating any missing segments.
- * E.g. ensureDirectory(root, "tasks/pferd/sub") creates tasks, pferd, sub as needed.
- * Returns the handle to the deepest directory.
+ * Ensure the directory at `rel` inside `root` exists, creating any missing
+ * ancestor directories.
  */
-export async function ensureDirectory(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<FileSystemDirectoryHandle> {
-  let handle = root;
-  for (const segment of path.split("/").filter(Boolean)) {
-    handle = await handle.getDirectoryHandle(segment, { create: true });
-  }
-  return handle;
+export async function ensureDirectory(root: string, rel: string): Promise<void> {
+  return window.electronAPI.ensureDirectory(root, rel);
 }
 
 /**
- * Recursively list all entries in a directory, returning
- * { files: string[], dirs: string[] } with paths relative to root.
+ * Recursively list all entries under `subPath` inside `root`.
+ * Returns `{ files, dirs }` with paths relative to the scanned sub-directory.
+ *
+ * @param root    - Absolute project root path.
+ * @param subPath - Optional sub-directory to scan (forward-slash separated).
+ *                  When omitted, the entire `root` is scanned.
  */
 export async function listDirectoryRecursive(
-  root: FileSystemDirectoryHandle,
-  prefix = "",
+  root: string,
+  subPath?: string,
 ): Promise<{ files: string[]; dirs: string[] }> {
-  const files: string[] = [];
-  const dirs: string[] = [];
-
-  for await (const [name, handle] of root.entries()) {
-    const path = prefix ? `${prefix}/${name}` : name;
-    if (handle.kind === "file") {
-      files.push(path);
-    } else {
-      dirs.push(path);
-      const sub = await listDirectoryRecursive(
-        handle as FileSystemDirectoryHandle,
-        path,
-      );
-      files.push(...sub.files);
-      dirs.push(...sub.dirs);
-    }
-  }
-
-  return { files, dirs };
+  return window.electronAPI.listDirectory(root, subPath);
 }

@@ -14,10 +14,10 @@ export type TimestampSnapshot = Map<string, number>;
  * Build a snapshot of all file timestamps under the project root.
  * Includes project.json, helpers.json, external_entities.json,
  * and everything under tasks/.
+ *
+ * @param root - Absolute path to the project directory.
  */
-export async function buildSnapshot(
-  root: FileSystemDirectoryHandle,
-): Promise<TimestampSnapshot> {
+export async function buildSnapshot(root: string): Promise<TimestampSnapshot> {
   const snapshot: TimestampSnapshot = new Map();
 
   // Top-level JSON files
@@ -26,17 +26,12 @@ export async function buildSnapshot(
     if (ts > 0) snapshot.set(file, ts);
   }
 
-  // All files under tasks/
-  try {
-    const tasksDir = await root.getDirectoryHandle("tasks");
-    const { files } = await listDirectoryRecursive(tasksDir);
-    for (const file of files) {
-      const path = `tasks/${file}`;
-      const ts = await getFileTimestamp(root, path);
-      if (ts > 0) snapshot.set(path, ts);
-    }
-  } catch {
-    // tasks/ directory may not exist yet
+  // All files under tasks/ (listDirectoryRecursive returns [] when absent).
+  const { files } = await listDirectoryRecursive(root, "tasks");
+  for (const file of files) {
+    const path = `tasks/${file}`;
+    const ts = await getFileTimestamp(root, path);
+    if (ts > 0) snapshot.set(path, ts);
   }
 
   return snapshot;

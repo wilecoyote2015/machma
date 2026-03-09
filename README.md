@@ -1,6 +1,6 @@
 # Machma
 
-Machma is a lean, text-based task management tool for events and projects. It runs entirely in the browser with no backend — all data lives in plain Markdown and JSON files on your local filesystem.
+Machma is a lean, text-based task management tool for events and projects. It runs as a native desktop app (Electron) with no backend — all data lives in plain Markdown and JSON files on your local filesystem.
 
 ## Key Features
 
@@ -10,26 +10,48 @@ Machma is a lean, text-based task management tool for events and projects. It ru
 - **Rich filtering**: Filter by deadline proximity, status, tags, groups, helpers, unresolved issues, and unanswered questions.
 - **Task detail editing**: Click any task to open a side panel with metadata fields, markdown description, questions, issues, and log entries — all editable inline.
 - **Live sync**: Polls for external file changes every 3 seconds, so edits made in a text editor or via git are reflected automatically.
-- **No backend**: Pure client-side SPA using the File System Access API. No server, no database, no Docker.
+- **No backend**: Pure desktop app using Electron + Node.js `fs`. No server, no database, no Docker.
 - **Responsive**: Desktop three-panel layout with collapsible sidebars; mobile full-screen overlay panels.
 
 ## Getting Started
 
+### Development
+
 ```bash
 npm install
-npm run dev
+npm run dev   # Launches Electron in dev mode with Vite HMR
 ```
-
-Open **Chrome** or **Edge** (Chromium required for File System Access API) and navigate to `http://localhost:5173`.
 
 Click **"Open Project Folder"** and select a directory containing a `project.json` file (see [example_project/](example_project/) for a working example).
 
-For production use, build and serve statically:
+### Building a distributable
 
 ```bash
-npm run build
-npx serve dist
+npm run make   # Packages for the current OS → out/make/
 ```
+
+Output artefacts:
+| Platform | Output                        |
+|----------|-------------------------------|
+| Windows  | Squirrel installer (`.exe`)   |
+| macOS    | ZIP archive (`.zip`)          |
+| Linux    | `.deb` and `.rpm` packages    |
+
+### Releasing via GitHub Actions
+
+Releases are built for all three platforms automatically when you push a version tag:
+
+```bash
+# Bump the version in package.json, commit, tag, and push
+npm version patch     # or minor / major
+git push origin main --tags
+```
+
+The [release workflow](.github/workflows/release.yml) triggers on `v*.*.*` tags, runs `npm run make` on Ubuntu, macOS, and Windows in parallel, then publishes all artefacts to a **draft** GitHub Release. Review it and publish manually.
+
+Before the first release:
+1. Open `forge.config.ts` and set your GitHub repository owner in `publishers[0].config.repository.owner`.
+2. Ensure `GITHUB_TOKEN` is available (GitHub Actions provides it automatically; for local runs: `export GITHUB_TOKEN=<your PAT>`).
 
 ## UI Overview
 
@@ -230,4 +252,4 @@ We have gathered information!
 
 ## Technical Details
 
-See [architecture.md](architecture.md) for the full technical architecture, file structure, design decisions, and state management documentation.
+See [architecture.md](architecture.md) for the full technical architecture, file structure, Electron IPC design, and state management documentation.

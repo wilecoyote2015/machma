@@ -1,3 +1,10 @@
+/**
+ * Vite configuration for the Electron **renderer process** (the React app).
+ *
+ * This file was previously `vite.config.ts`. It is now referenced by
+ * Electron Forge's VitePlugin as the renderer build config.
+ */
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
