@@ -2,6 +2,9 @@
 
 Machma is a lean, text-based task management tool for events and projects. It runs as a native desktop app (Electron) with no backend — all data lives in plain Markdown and JSON files on your local filesystem.
 
+Machma is a small weekend project to practice vibe coding. So most of the code is AI slop ;)
+At least, the Readme is not full of emoticons...
+
 ## Key Features
 
 - **Text-file based**: All project data is stored as `.md` and `.json` files. Edit them with any text editor, version-control with git, and use Machma's UI for visual management.
