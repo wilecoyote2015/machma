@@ -3,6 +3,7 @@
   "productName": "Machma",
   "description": "A lean, text-based task management tool for events and projects.",
   "author": "Machma Contributors",
+  "license": "GPL-3.0-only",
   "private": true,
   "version": "0.1.4",
   "main": ".vite/build/main.js",
