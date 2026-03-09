@@ -4,7 +4,7 @@
   "description": "A lean, text-based task management tool for events and projects.",
   "author": "Machma Contributors",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
