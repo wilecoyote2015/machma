@@ -50,19 +50,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ── 4. Build & package ───────────────────────────────────────────────
-      # `electron-forge make` compiles the main/preload/renderer with Vite,
-      # packages everything with @electron/packager, and produces the
-      # platform-specific distributor via the configured makers.
-      - name: Build and package
-        run: npm run make
-
-      # ── 5. Publish to GitHub Releases ────────────────────────────────────
-      # `electron-forge publish` uses the GitHub publisher configured in
-      # forge.config.ts.  GITHUB_TOKEN is injected automatically by Actions.
-      # All three platforms publish to the same draft release (identified by
-      # the version in package.json).
-      - name: Publish release
+      # ── 4. Build, package & publish ──────────────────────────────────────
+      # `electron-forge publish` runs the full pipeline internally:
+      #   package (Vite build + electron-packager) → make (deb/rpm/zip/exe)
+      #   → publish (upload artifacts to the GitHub Release draft).
+      # Running a separate `npm run make` step beforehand is redundant and
+      # would cause the app to be built twice.
+      - name: Build, package and publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run publish

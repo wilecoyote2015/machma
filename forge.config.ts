@@ -25,6 +25,14 @@ const config: ForgeConfig = {
   packagerConfig: {
     /** Bundle the app into an asar archive for smaller install size. */
     asar: true,
+    /**
+     * Explicitly set the Linux/Windows executable name to the lowercase
+     * `name` field from package.json.  Without this, electron-packager
+     * derives the binary name from `productName` ("Machma"), whereas
+     * electron-installer-debian/rpm look for the binary using `name`
+     * ("machma"), causing the make step to fail with "binary not found".
+     */
+    executableName: "machma",
   },
 
   rebuildConfig: {},
