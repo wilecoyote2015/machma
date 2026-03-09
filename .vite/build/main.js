@@ -3,23 +3,17 @@ const electron = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
 function createWindow() {
-  const mainWindow = new electron.BrowserWindow({
+  const win = new electron.BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
-      /**
-       * Preload runs in an isolated context; it can call Node.js/Electron APIs
-       * and expose them to the renderer via contextBridge.
-       */
       preload: path.join(__dirname, "preload.js"),
-      /** Strict isolation: renderer cannot access Node.js or Electron APIs directly. */
       contextIsolation: true,
-      /** Never expose Node.js to the renderer; all access goes through IPC. */
       nodeIntegration: false
     }
   });
   {
-    mainWindow.loadURL("http://localhost:5173");
+    win.loadURL("http://localhost:5173");
   }
 }
 electron.app.whenReady().then(() => {
@@ -33,13 +27,12 @@ electron.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") electron.app.quit();
 });
 function resolvePath(root, rel) {
-  return path.join(root, ...rel.split("/"));
+  return path.join(root, rel);
 }
 async function listRecursive(dir, prefix = "") {
   const files = [];
   const dirs = [];
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
     const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       dirs.push(relPath);
@@ -60,9 +53,10 @@ function registerIpcHandlers() {
     });
     return result.canceled ? null : result.filePaths[0];
   });
-  electron.ipcMain.handle("fs:readFile", async (_event, root, rel) => {
-    return fs.readFile(resolvePath(root, rel), "utf-8");
-  });
+  electron.ipcMain.handle(
+    "fs:readFile",
+    (_event, root, rel) => fs.readFile(resolvePath(root, rel), "utf-8")
+  );
   electron.ipcMain.handle(
     "fs:writeFile",
     async (_event, root, rel, content) => {
@@ -71,29 +65,29 @@ function registerIpcHandlers() {
       await fs.writeFile(fullPath, content, "utf-8");
     }
   );
-  electron.ipcMain.handle("fs:deleteFile", async (_event, root, rel) => {
-    await fs.unlink(resolvePath(root, rel));
-  });
+  electron.ipcMain.handle(
+    "fs:deleteFile",
+    (_event, root, rel) => fs.unlink(resolvePath(root, rel))
+  );
   electron.ipcMain.handle(
     "fs:listDirectory",
-    async (_event, root, subPath = "") => {
-      const scanRoot = subPath ? path.join(root, ...subPath.split("/")) : root;
+    async (_event, root, subPath) => {
       try {
-        return await listRecursive(scanRoot);
+        return await listRecursive(subPath ? resolvePath(root, subPath) : root);
       } catch {
         return { files: [], dirs: [] };
       }
     }
   );
-  electron.ipcMain.handle("fs:ensureDir", async (_event, root, rel) => {
-    await fs.mkdir(resolvePath(root, rel), { recursive: true });
-  });
+  electron.ipcMain.handle(
+    "fs:ensureDir",
+    (_event, root, rel) => fs.mkdir(resolvePath(root, rel), { recursive: true })
+  );
   electron.ipcMain.handle(
     "fs:getTimestamp",
     async (_event, root, rel) => {
       try {
-        const stat = await fs.stat(resolvePath(root, rel));
-        return stat.mtimeMs;
+        return (await fs.stat(resolvePath(root, rel))).mtimeMs;
       } catch {
         return 0;
       }
