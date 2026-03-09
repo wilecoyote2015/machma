@@ -88,17 +88,6 @@ export function TaskTableView() {
 					/>
 				),
 			},
-		{
-			key: "deadline",
-			label: "Deadline",
-			thClassName: "w-40",
-				cellClassName: "px-2 py-2 text-gray-600",
-				compare: (a, b) =>
-					(a.resolvedDeadline?.getTime() ?? Infinity) -
-					(b.resolvedDeadline?.getTime() ?? Infinity),
-			render: (r) =>
-				r.resolvedDeadline ? formatDateTime(r.resolvedDeadline) : r.task.deadline || "—",
-			},
 			{
 				key: "start_date",
 				label: "Start",
@@ -108,7 +97,22 @@ export function TaskTableView() {
 					(a.resolvedStartDate?.getTime() ?? Infinity) -
 					(b.resolvedStartDate?.getTime() ?? Infinity),
 				render: (r) =>
-					r.resolvedStartDate ? formatDateTime(r.resolvedStartDate) : r.task.start_date || "—",
+					r.resolvedStartDate ?
+						formatDateTime(r.resolvedStartDate)
+					:	r.task.start_date || "—",
+			},
+			{
+				key: "deadline",
+				label: "Deadline",
+				thClassName: "w-40",
+				cellClassName: "px-2 py-2 text-gray-600",
+				compare: (a, b) =>
+					(a.resolvedDeadline?.getTime() ?? Infinity) -
+					(b.resolvedDeadline?.getTime() ?? Infinity),
+				render: (r) =>
+					r.resolvedDeadline ?
+						formatDateTime(r.resolvedDeadline)
+					:	r.task.deadline || "—",
 			},
 			{
 				key: "assignee",
@@ -130,7 +134,9 @@ export function TaskTableView() {
 						className={`select-table ${statusBorderClass(r.task.status)}`}>
 						<option value="">—</option>
 						{Object.entries(helperMap).map(([id, helper]) => (
-							<option key={id} value={id}>
+							<option
+								key={id}
+								value={id}>
 								{getInitials(helper.name)}
 							</option>
 						))}
@@ -160,7 +166,9 @@ export function TaskTableView() {
 						onClick={(e) => e.stopPropagation()}
 						className={`select-table ${statusBorderClass(r.task.status)}`}>
 						{TASK_STATUSES.map((s) => (
-							<option key={s} value={s}>
+							<option
+								key={s}
+								value={s}>
 								{formatStatus(s)}
 							</option>
 						))}
